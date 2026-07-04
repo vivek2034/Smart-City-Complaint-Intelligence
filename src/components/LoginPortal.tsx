@@ -249,16 +249,14 @@ export default function LoginPortal({ initialRole = "citizen", onLoginSuccess, o
               Official accounts are securely provisioned and managed by the central municipal database. Please contact the municipal IT administration desk to request or modify credentials.
             </p>
             <div className="pt-2.5 border-t border-slate-200/65 text-left space-y-1.5 text-[11px] font-mono text-slate-400">
-              <span className="block font-bold text-slate-500 text-[10px] uppercase tracking-wider mb-1">Database Official Logins:</span>
+              <span className="block font-bold text-slate-500 text-[10px] uppercase tracking-wider mb-1">Contact For Issue</span>
               <div className="flex flex-col gap-1">
                 <div className="bg-white p-1.5 rounded border border-slate-100 flex justify-between">
-                  <span>ID: <strong className="text-indigo-600">admin@city.gov.in</strong></span>
-                  <span>Pass: <strong className="text-slate-600">password123</strong></span>
+                  <span>Email:<strong className="text-indigo-600">xyz@gmail.com</strong></span>
+                  <span>No.:<strong className="text-slate-600">90xxxxxxxx</strong></span>
                 </div>
                 <div className="bg-white p-1.5 rounded border border-slate-100 flex justify-between">
-                  <span>ID: <strong className="text-indigo-600">official@city.gov.in</strong></span>
-                  <span>Pass: <strong className="text-slate-600">officialpass</strong></span>
-                </div>
+                
               </div>
             </div>
           </div>
