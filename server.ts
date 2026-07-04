@@ -65,122 +65,88 @@ function getFallbackAnalysis(title: string, description: string) {
   return { category, severity, sentiment, keywords };
 }
 
-// AI Complaint Analysis Route (Using Mistral-Large-3-675b-instruct on Nvidia NIM)
-app.post("/api/analyze", async (req, res) => {
-  const { title, description } = req.body;
+import { GoogleGenAI, Type } from "@google/genai";
 
-  if (!title || !description) {
-    return res.status(400).json({ error: "Title and description are required" });
+// Lazy-initialize Gemini client to support zero-config startup and graceful error handling
+let geminiClient: GoogleGenAI | null = null;
+function getGeminiClient(): GoogleGenAI | null {
+  if (!geminiClient) {
+    const key = process.env.GEMINI_API_KEY;
+    if (key && key !== "MY_GEMINI_API_KEY" && key.trim() !== "") {
+      geminiClient = new GoogleGenAI({
+        apiKey: key,
+        httpOptions: {
+          headers: {
+            "User-Agent": "aistudio-build"
+          }
+        }
+      });
+    }
+  }
+  return geminiClient;
+}
+
+// Backup function using gemini-3.5-flash for structured complaint analysis
+async function analyzeWithGemini(title: string, description: string) {
+  const client = getGeminiClient();
+  if (!client) {
+    throw new Error("Gemini API Client could not be initialized (key missing or invalid).");
   }
 
-  const apiKey = process.env.NVIDIA_API_KEY;
-
-  if (!apiKey || apiKey === "MY_NVIDIA_API_KEY" || apiKey.trim() === "") {
-    console.log("[AI API] NVIDIA_API_KEY is not set. Using local rule-based analysis fallback.");
-    const fallbackResult = getFallbackAnalysis(title, description);
-    return res.json({ ...fallbackResult, source: "fallback_rules" });
-  }
-
-  try {
-    const systemPrompt = `You are a Smart City Complaint Intelligence AI. Your task is to analyze municipal complaints submitted by citizens and classify them.
-You must respond with raw JSON ONLY. Do not wrap your response in markdown code blocks (such as \`\`\`json). The JSON must have exactly these keys:
+  const systemInstruction = `You are a Smart City Complaint Intelligence AI. Your task is to analyze municipal complaints submitted by citizens and classify them.
+You must respond with raw JSON ONLY. The JSON must have exactly these keys:
 - category: must be one of ["Roads & Traffic", "Sanitation & Waste", "Water & Sewage", "Electricity & Power", "Public Safety", "Others"]
 - severity: must be one of ["High", "Medium", "Low"]
 - sentiment: must be a short description of the user's emotional state (e.g. "Frustrated", "Neutral", "Anxious", "Concerned")
-- keywords: must be an array of up to 5 relevant tags or keywords extracted from the complaint text
+- keywords: must be an array of up to 5 relevant tags or keywords extracted from the complaint text`;
 
-Example JSON Output:
-{
-  "category": "Roads & Traffic",
-  "severity": "High",
-  "sentiment": "Frustrated",
-  "keywords": ["pothole", "accident", "broken road", "damage"]
-}`;
-
-    const userPrompt = `Complaint Title: "${title}"
+  const userPrompt = `Complaint Title: "${title}"
 Complaint Description: "${description}"`;
 
-    const invokeUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-    const headers = {
-      "Authorization": `Bearer ${apiKey}`,
-      "Accept": "application/json",
-      "Content-Type": "application/json"
-    };
-
-    const payload = {
-      "model": "mistralai/mistral-large-3-675b-instruct-2512",
-      "messages": [
-        { "role": "system", "content": systemPrompt },
-        { "role": "user", "content": userPrompt }
-      ],
-      "max_tokens": 1024,
-      "temperature": 0.15,
-      "top_p": 1.00,
-      "frequency_penalty": 0.00,
-      "presence_penalty": 0.00,
-      "stream": false
-    };
-
-    console.log("[AI API] Sending request to NVIDIA NIM API...");
-    const response = await axios.post(invokeUrl, payload, { headers, timeout: 10000 });
-    
-    let content = response.data.choices[0].message.content.trim();
-    console.log("[AI API] Raw Response content:", content);
-
-    // Strip any markdown codeblock backticks if the model ignores system prompt
-    if (content.startsWith("```")) {
-      content = content.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+  const response = await client.models.generateContent({
+    model: "gemini-3.5-flash",
+    contents: userPrompt,
+    config: {
+      systemInstruction: systemInstruction,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          category: {
+            type: Type.STRING,
+            description: "Category of the complaint"
+          },
+          severity: {
+            type: Type.STRING,
+            description: "Severity of the complaint: High, Medium, or Low"
+          },
+          sentiment: {
+            type: Type.STRING,
+            description: "Citizen's emotional state or sentiment"
+          },
+          keywords: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: "Up to 5 relevant keywords extracted from the complaint"
+          }
+        },
+        required: ["category", "severity", "sentiment", "keywords"]
+      }
     }
+  });
 
-    try {
-      const parsed = JSON.parse(content);
-      return res.json({ ...parsed, source: "nvidia_mistral" });
-    } catch (parseError) {
-      console.error("[AI API] Failed to parse JSON response from LLM:", content);
-      // Fallback if parsing fails
-      const fallbackResult = getFallbackAnalysis(title, description);
-      return res.json({ ...fallbackResult, source: "nvidia_mistral_parse_fallback" });
-    }
-  } catch (error: any) {
-    console.error("[AI API] Error during Nvidia API invocation:", error.message);
-    const fallbackResult = getFallbackAnalysis(title, description);
-    return res.json({ ...fallbackResult, source: "api_error_fallback" });
-  }
-});
+  const text = response.text || "";
+  return JSON.parse(text);
+}
 
-// AI Assistant Chat Route (Conversational Assistant for Citizens and Officials)
-app.post("/api/assistant", async (req, res) => {
-  const { messages, userContext } = req.body;
-
-  if (!messages || !Array.isArray(messages)) {
-    return res.status(400).json({ error: "Messages array is required" });
+// Backup function using gemini-3.5-flash for friendly assistant conversation
+async function assistantWithGemini(messages: any[], userContext: any): Promise<string> {
+  const client = getGeminiClient();
+  if (!client) {
+    throw new Error("Gemini API Client could not be initialized (key missing or invalid).");
   }
 
-  const apiKey = process.env.NVIDIA_API_KEY;
-
-  if (!apiKey || apiKey === "MY_NVIDIA_API_KEY" || apiKey.trim() === "") {
-    // Generate a helpful rule-based assistant response if API key is not set
-    const lastUserMessage = messages[messages.length - 1]?.content || "";
-    const lower = lastUserMessage.toLowerCase();
-    let reply = "I am here to help you navigate the Smart City Complaint Portal. How can I help you today?";
-
-    if (lower.includes("severity") || lower.includes("decide") || lower.includes("how is")) {
-      reply = "Complaint severity is automatically determined by our AI system using advanced NLP! \n\n🔴 **High**: Immediate safety hazards, severe infrastructure collapse, water supply main pipe bursts, or darkness on busy streets.\n🟠 **Medium**: Regular service disruptions like overflowing dumpsters or minor blockages.\n🟢 **Low**: Minor aesthetics or standard repair requests.";
-    } else if (lower.includes("categories") || lower.includes("support") || lower.includes("what category")) {
-      reply = "We support 6 primary categories:\n1. **Roads & Traffic** (potholes, street lights, blockages)\n2. **Sanitation & Waste** (garbage pileups, dirty spaces)\n3. **Water & Sewage** (leakages, drainage, burst pipes)\n4. **Electricity & Power** (cables, loose wires, power cutouts)\n5. **Public Safety** (dark alleys, broken pedestrian crossings, hazards)\n6. **Others** (miscellaneous civic queries)";
-    } else if (lower.includes("track") || lower.includes("how to") || lower.includes("status")) {
-      reply = "To track a complaint, navigate to the **Track My Complaints** tab in the Citizen Portal. You'll see a live timeline mapping stages: **Pending ➔ Assigned ➔ Investigation with Resolution Timeline ➔ Resolved**, with technical action plans and live feedback directly from the on-ground engineers.";
-    } else if (lower.includes("who handles") || lower.includes("water") || lower.includes("leakage")) {
-      reply = "Water leakages are handled with top priority by the **Municipal Water Supply & Sewage Board (BWSSB)**. High-severity pipe bursts are assigned within 2 hours, with mandatory fix timelines given to on-ground crews.";
-    } else if (lower.includes("official") || lower.includes("authority")) {
-      reply = "Officials can sign in using their official email, password, and department credentials. Once logged in, the portal lists complaints prioritizing High severity, enables assigning them to specific field divisions, and requires setting concrete fix timelines with reasonings.";
-    }
-
-    return res.json({ reply, source: "local_assistant_rules" });
-  }
-
-  try {
-    const systemInstruction = `You are a helpful, smart, and friendly Smart City Complaint Intelligence Assistant named "Civic Assistant AI". 
+  const systemInstruction = `You are a helpful, smart, and friendly Smart City Complaint Intelligence Assistant named "Civic Assistant AI". 
 You are speaking to a user on our Smart City web application.
 User details: ID: ${userContext?.id || "unknown"}, Role: ${userContext?.role || "Citizen/Visitor"}.
 
@@ -188,39 +154,202 @@ Your core purpose is to guide them about the portal, explain how our AI automati
 
 Keep your answers structured, encouraging, professional, and clear. Feel free to use bolding, bullet points, and appropriate emojis to format your answer beautifully. Use markdown formatting if needed. Do not make up fake URLs.`;
 
-    const apiMessages = [
-      { role: "system", content: systemInstruction },
-      ...messages.slice(-8) // Send up to last 8 messages for context
-    ];
-
-    const invokeUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-    const headers = {
-      "Authorization": `Bearer ${apiKey}`,
-      "Accept": "application/json",
-      "Content-Type": "application/json"
+  // Map messages to Gemini's { role: 'user' | 'model', parts: [{ text: '...' }] } structure
+  const contents = messages.slice(-8).map((m: any) => {
+    let role = m.role;
+    if (role === "assistant" || role === "system") {
+      role = "model";
+    }
+    return {
+      role: role,
+      parts: [{ text: m.content || "" }]
     };
+  });
 
-    const payload = {
-      "model": "mistralai/mistral-large-3-675b-instruct-2512",
-      "messages": apiMessages,
-      "max_tokens": 1024,
-      "temperature": 0.3,
-      "top_p": 1.00,
-      "stream": false
-    };
+  const response = await client.models.generateContent({
+    model: "gemini-3.5-flash",
+    contents: contents,
+    config: {
+      systemInstruction: systemInstruction,
+      temperature: 0.3
+    }
+  });
 
-    console.log("[Assistant API] Sending request to NVIDIA NIM API...");
-    const response = await axios.post(invokeUrl, payload, { headers, timeout: 12000 });
-    const reply = response.data.choices[0].message.content.trim();
-    
-    return res.json({ reply, source: "nvidia_mistral" });
-  } catch (error: any) {
-    console.error("[Assistant API] Error during Nvidia API invocation:", error.message);
-    return res.json({ 
-      reply: "I am having some connection delays, but I can assure you that all complaints are logged securely in our Firestore databases. High-severity issues are dispatched to repair authorities within 12 hours.",
-      source: "api_error_fallback" 
-    });
+  return response.text || "I am here to support you. Let me know what questions you have about municipal complaints!";
+}
+
+// AI Complaint Analysis Route (Using NVIDIA NIM as primary, Gemini as backup, rule-based fallback if offline)
+app.post("/api/analyze", async (req, res) => {
+  const { title, description } = req.body;
+
+  if (!title || !description) {
+    return res.status(400).json({ error: "Title and description are required" });
   }
+
+  const nvidiaApiKey = process.env.NVIDIA_API_KEY;
+  const hasNvidiaKey = nvidiaApiKey && nvidiaApiKey !== "MY_NVIDIA_API_KEY" && nvidiaApiKey.trim() !== "";
+
+  // 1. Try NVIDIA NIM Primary Model
+  if (hasNvidiaKey) {
+    try {
+      console.log("[AI API] Sending request to NVIDIA NIM API...");
+      const systemPrompt = `You are a Smart City Complaint Intelligence AI. Your task is to analyze municipal complaints submitted by citizens and classify them.
+You must respond with raw JSON ONLY. Do not wrap your response in markdown code blocks (such as \`\`\`json). The JSON must have exactly these keys:
+- category: must be one of ["Roads & Traffic", "Sanitation & Waste", "Water & Sewage", "Electricity & Power", "Public Safety", "Others"]
+- severity: must be one of ["High", "Medium", "Low"]
+- sentiment: must be a short description of the user's emotional state (e.g. "Frustrated", "Neutral", "Anxious", "Concerned")
+- keywords: must be an array of up to 5 relevant tags or keywords extracted from the complaint text`;
+
+      const userPrompt = `Complaint Title: "${title}"
+Complaint Description: "${description}"`;
+
+      const invokeUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
+      const headers = {
+        "Authorization": `Bearer ${nvidiaApiKey}`,
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+      };
+
+      const payload = {
+        "model": "mistralai/mistral-large-3-675b-instruct-2512",
+        "messages": [
+          { "role": "system", "content": systemPrompt },
+          { "role": "user", "content": userPrompt }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0.15,
+        "top_p": 1.00,
+        "stream": false
+      };
+
+      const response = await axios.post(invokeUrl, payload, { headers, timeout: 10000 });
+      let content = response.data.choices[0].message.content.trim();
+      console.log("[AI API] Raw NVIDIA Response:", content);
+
+      if (content.startsWith("```")) {
+        content = content.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+      }
+
+      const parsed = JSON.parse(content);
+      return res.json({ ...parsed, source: "nvidia_mistral" });
+    } catch (nvidiaError: any) {
+      console.warn("[AI API] NVIDIA NIM API failed, trying Gemini backup:", nvidiaError.message);
+    }
+  } else {
+    console.log("[AI API] NVIDIA_API_KEY is not configured or placeholder.");
+  }
+
+  // 2. Try Gemini Backup Model
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  const hasGeminiKey = geminiApiKey && geminiApiKey !== "MY_GEMINI_API_KEY" && geminiApiKey.trim() !== "";
+
+  if (hasGeminiKey) {
+    try {
+      console.log("[AI API] Invoking Gemini API as fallback for Structured Analysis...");
+      const parsed = await analyzeWithGemini(title, description);
+      return res.json({ ...parsed, source: "gemini_backup" });
+    } catch (geminiError: any) {
+      console.warn("[AI API] Gemini backup analysis failed:", geminiError.message);
+    }
+  } else {
+    console.log("[AI API] GEMINI_API_KEY is not configured or placeholder.");
+  }
+
+  // 3. Last Fallback: Local rule-based processing
+  console.log("[AI API] Both AI endpoints unavailable. Using local rule-based analysis.");
+  const fallbackResult = getFallbackAnalysis(title, description);
+  return res.json({ ...fallbackResult, source: "fallback_rules" });
+});
+
+// AI Assistant Chat Route (NVIDIA NIM primary, Gemini backup, Local rule-based fallback)
+app.post("/api/assistant", async (req, res) => {
+  const { messages, userContext } = req.body;
+
+  if (!messages || !Array.isArray(messages)) {
+    return res.status(400).json({ error: "Messages array is required" });
+  }
+
+  const nvidiaApiKey = process.env.NVIDIA_API_KEY;
+  const hasNvidiaKey = nvidiaApiKey && nvidiaApiKey !== "MY_NVIDIA_API_KEY" && nvidiaApiKey.trim() !== "";
+
+  // 1. Try NVIDIA NIM Primary Model
+  if (hasNvidiaKey) {
+    try {
+      console.log("[Assistant API] Sending request to NVIDIA NIM API...");
+      const systemInstruction = `You are a helpful, smart, and friendly Smart City Complaint Intelligence Assistant named "Civic Assistant AI". 
+You are speaking to a user on our Smart City web application.
+User details: ID: ${userContext?.id || "unknown"}, Role: ${userContext?.role || "Citizen/Visitor"}.
+
+Your core purpose is to guide them about the portal, explain how our AI automatically determines Category, Severity (High, Medium, Low), Sentiment, and Keywords, assist citizens in tracking and writing helpful complaints, and advise authorities on prioritizations (always act on High-severity safety issues first).
+
+Keep your answers structured, encouraging, professional, and clear. Feel free to use bolding, bullet points, and appropriate emojis to format your answer beautifully. Use markdown formatting if needed. Do not make up fake URLs.`;
+
+      const apiMessages = [
+        { role: "system", content: systemInstruction },
+        ...messages.slice(-8) // Send up to last 8 messages for context
+      ];
+
+      const invokeUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
+      const headers = {
+        "Authorization": `Bearer ${nvidiaApiKey}`,
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+      };
+
+      const payload = {
+        "model": "mistralai/mistral-large-3-675b-instruct-2512",
+        "messages": apiMessages,
+        "max_tokens": 1024,
+        "temperature": 0.3,
+        "top_p": 1.00,
+        "stream": false
+      };
+
+      const response = await axios.post(invokeUrl, payload, { headers, timeout: 12000 });
+      const reply = response.data.choices[0].message.content.trim();
+      return res.json({ reply, source: "nvidia_mistral" });
+    } catch (nvidiaError: any) {
+      console.warn("[Assistant API] NVIDIA NIM API failed, trying Gemini backup:", nvidiaError.message);
+    }
+  } else {
+    console.log("[Assistant API] NVIDIA_API_KEY is not configured or placeholder.");
+  }
+
+  // 2. Try Gemini Backup Model
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  const hasGeminiKey = geminiApiKey && geminiApiKey !== "MY_GEMINI_API_KEY" && geminiApiKey.trim() !== "";
+
+  if (hasGeminiKey) {
+    try {
+      console.log("[Assistant API] Invoking Gemini API as fallback for Assistant Conversation...");
+      const reply = await assistantWithGemini(messages, userContext);
+      return res.json({ reply, source: "gemini_backup" });
+    } catch (geminiError: any) {
+      console.warn("[Assistant API] Gemini backup assistant failed:", geminiError.message);
+    }
+  } else {
+    console.log("[Assistant API] GEMINI_API_KEY is not configured or placeholder.");
+  }
+
+  // 3. Last Fallback: Local rule-based assistant responses
+  console.log("[Assistant API] All cloud AI model methods unavailable. Falling back to rule-based responses.");
+  const lastUserMessage = messages[messages.length - 1]?.content || "";
+  const lower = lastUserMessage.toLowerCase();
+  let reply = "I am here to help you navigate the Smart City Complaint Portal. How can I help you today?";
+
+  if (lower.includes("severity") || lower.includes("decide") || lower.includes("how is")) {
+    reply = "Complaint severity is automatically determined by our AI system using advanced NLP! \n\n🔴 **High**: Immediate safety hazards, severe infrastructure collapse, water supply main pipe bursts, or darkness on busy streets.\n🟠 **Medium**: Regular service disruptions like overflowing dumpsters or minor blockages.\n🟢 **Low**: Minor aesthetics or standard repair requests.";
+  } else if (lower.includes("categories") || lower.includes("support") || lower.includes("what category")) {
+    reply = "We support 6 primary categories:\n1. **Roads & Traffic** (potholes, street lights, blockages)\n2. **Sanitation & Waste** (garbage pileups, dirty spaces)\n3. **Water & Sewage** (leakages, drainage, burst pipes)\n4. **Electricity & Power** (cables, loose wires, power cutouts)\n5. **Public Safety** (dark alleys, broken pedestrian crossings, hazards)\n6. **Others** (miscellaneous civic queries)";
+  } else if (lower.includes("track") || lower.includes("how to") || lower.includes("status")) {
+    reply = "To track a complaint, navigate to the **Track My Complaints** tab in the Citizen Portal. You'll see a live timeline mapping stages: **Pending ➔ Assigned ➔ Investigation with Resolution Timeline ➔ Resolved**, with technical action plans and live feedback directly from the on-ground engineers.";
+  } else if (lower.includes("who handles") || lower.includes("water") || lower.includes("leakage")) {
+    reply = "Water leakages are handled with top priority by the **Municipal Water Supply & Sewage Board (BWSSB)**. High-severity pipe bursts are assigned within 2 hours, with mandatory fix timelines given to on-ground crews.";
+  } else if (lower.includes("official") || lower.includes("authority")) {
+    reply = "Officials can sign in using their official email, password, and department credentials. Once logged in, the portal lists complaints prioritizing High severity, enables assigning them to specific field divisions, and requires setting concrete fix timelines with reasonings.";
+  }
+
+  return res.json({ reply, source: "local_assistant_rules" });
 });
 
 // Start server and mount Vite dev middleware
