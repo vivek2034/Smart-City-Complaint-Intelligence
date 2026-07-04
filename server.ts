@@ -178,7 +178,7 @@ Keep your answers structured, encouraging, professional, and clear. Feel free to
   return response.text || "I am here to support you. Let me know what questions you have about municipal complaints!";
 }
 
-// AI Complaint Analysis Route (Using NVIDIA NIM as primary, Gemini as backup, rule-based fallback if offline)
+// AI Complaint Analysis Route (Using Gemini as primary, NVIDIA NIM as backup, rule-based fallback if offline)
 app.post("/api/analyze", async (req, res) => {
   const { title, description } = req.body;
 
@@ -186,13 +186,29 @@ app.post("/api/analyze", async (req, res) => {
     return res.status(400).json({ error: "Title and description are required" });
   }
 
+  // 1. Try Gemini Primary Model
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  const hasGeminiKey = geminiApiKey && geminiApiKey !== "MY_GEMINI_API_KEY" && geminiApiKey.trim() !== "";
+
+  if (hasGeminiKey) {
+    try {
+      console.log("[AI API] Invoking Gemini API for Structured Analysis...");
+      const parsed = await analyzeWithGemini(title, description);
+      return res.json({ ...parsed, source: "gemini_primary" });
+    } catch (geminiError: any) {
+      console.warn("[AI API] Gemini primary analysis failed, trying NVIDIA NIM backup:", geminiError.message);
+    }
+  } else {
+    console.log("[AI API] GEMINI_API_KEY is not configured or placeholder.");
+  }
+
+  // 2. Try NVIDIA NIM Backup Model
   const nvidiaApiKey = process.env.NVIDIA_API_KEY;
   const hasNvidiaKey = nvidiaApiKey && nvidiaApiKey !== "MY_NVIDIA_API_KEY" && nvidiaApiKey.trim() !== "";
 
-  // 1. Try NVIDIA NIM Primary Model
   if (hasNvidiaKey) {
     try {
-      console.log("[AI API] Sending request to NVIDIA NIM API...");
+      console.log("[AI API] Sending request to NVIDIA NIM API as backup...");
       const systemPrompt = `You are a Smart City Complaint Intelligence AI. Your task is to analyze municipal complaints submitted by citizens and classify them.
 You must respond with raw JSON ONLY. Do not wrap your response in markdown code blocks (such as \`\`\`json). The JSON must have exactly these keys:
 - category: must be one of ["Roads & Traffic", "Sanitation & Waste", "Water & Sewage", "Electricity & Power", "Public Safety", "Others"]
@@ -231,28 +247,12 @@ Complaint Description: "${description}"`;
       }
 
       const parsed = JSON.parse(content);
-      return res.json({ ...parsed, source: "nvidia_mistral" });
+      return res.json({ ...parsed, source: "nvidia_mistral_backup" });
     } catch (nvidiaError: any) {
-      console.warn("[AI API] NVIDIA NIM API failed, trying Gemini backup:", nvidiaError.message);
+      console.warn("[AI API] NVIDIA NIM API backup failed:", nvidiaError.message);
     }
   } else {
     console.log("[AI API] NVIDIA_API_KEY is not configured or placeholder.");
-  }
-
-  // 2. Try Gemini Backup Model
-  const geminiApiKey = process.env.GEMINI_API_KEY;
-  const hasGeminiKey = geminiApiKey && geminiApiKey !== "MY_GEMINI_API_KEY" && geminiApiKey.trim() !== "";
-
-  if (hasGeminiKey) {
-    try {
-      console.log("[AI API] Invoking Gemini API as fallback for Structured Analysis...");
-      const parsed = await analyzeWithGemini(title, description);
-      return res.json({ ...parsed, source: "gemini_backup" });
-    } catch (geminiError: any) {
-      console.warn("[AI API] Gemini backup analysis failed:", geminiError.message);
-    }
-  } else {
-    console.log("[AI API] GEMINI_API_KEY is not configured or placeholder.");
   }
 
   // 3. Last Fallback: Local rule-based processing
@@ -261,7 +261,7 @@ Complaint Description: "${description}"`;
   return res.json({ ...fallbackResult, source: "fallback_rules" });
 });
 
-// AI Assistant Chat Route (NVIDIA NIM primary, Gemini backup, Local rule-based fallback)
+// AI Assistant Chat Route (Gemini primary, NVIDIA NIM backup, Local rule-based fallback)
 app.post("/api/assistant", async (req, res) => {
   const { messages, userContext } = req.body;
 
@@ -269,13 +269,29 @@ app.post("/api/assistant", async (req, res) => {
     return res.status(400).json({ error: "Messages array is required" });
   }
 
+  // 1. Try Gemini Primary Model
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  const hasGeminiKey = geminiApiKey && geminiApiKey !== "MY_GEMINI_API_KEY" && geminiApiKey.trim() !== "";
+
+  if (hasGeminiKey) {
+    try {
+      console.log("[Assistant API] Invoking Gemini API as primary for Assistant Conversation...");
+      const reply = await assistantWithGemini(messages, userContext);
+      return res.json({ reply, source: "gemini_primary" });
+    } catch (geminiError: any) {
+      console.warn("[Assistant API] Gemini primary assistant failed, trying NVIDIA NIM backup:", geminiError.message);
+    }
+  } else {
+    console.log("[Assistant API] GEMINI_API_KEY is not configured or placeholder.");
+  }
+
+  // 2. Try NVIDIA NIM Backup Model
   const nvidiaApiKey = process.env.NVIDIA_API_KEY;
   const hasNvidiaKey = nvidiaApiKey && nvidiaApiKey !== "MY_NVIDIA_API_KEY" && nvidiaApiKey.trim() !== "";
 
-  // 1. Try NVIDIA NIM Primary Model
   if (hasNvidiaKey) {
     try {
-      console.log("[Assistant API] Sending request to NVIDIA NIM API...");
+      console.log("[Assistant API] Sending request to NVIDIA NIM API as backup...");
       const systemInstruction = `You are a helpful, smart, and friendly Smart City Complaint Intelligence Assistant named "Civic Assistant AI". 
 You are speaking to a user on our Smart City web application.
 User details: ID: ${userContext?.id || "unknown"}, Role: ${userContext?.role || "Citizen/Visitor"}.
@@ -307,28 +323,12 @@ Keep your answers structured, encouraging, professional, and clear. Feel free to
 
       const response = await axios.post(invokeUrl, payload, { headers, timeout: 12000 });
       const reply = response.data.choices[0].message.content.trim();
-      return res.json({ reply, source: "nvidia_mistral" });
+      return res.json({ reply, source: "nvidia_mistral_backup" });
     } catch (nvidiaError: any) {
-      console.warn("[Assistant API] NVIDIA NIM API failed, trying Gemini backup:", nvidiaError.message);
+      console.warn("[Assistant API] NVIDIA NIM API failed:", nvidiaError.message);
     }
   } else {
     console.log("[Assistant API] NVIDIA_API_KEY is not configured or placeholder.");
-  }
-
-  // 2. Try Gemini Backup Model
-  const geminiApiKey = process.env.GEMINI_API_KEY;
-  const hasGeminiKey = geminiApiKey && geminiApiKey !== "MY_GEMINI_API_KEY" && geminiApiKey.trim() !== "";
-
-  if (hasGeminiKey) {
-    try {
-      console.log("[Assistant API] Invoking Gemini API as fallback for Assistant Conversation...");
-      const reply = await assistantWithGemini(messages, userContext);
-      return res.json({ reply, source: "gemini_backup" });
-    } catch (geminiError: any) {
-      console.warn("[Assistant API] Gemini backup assistant failed:", geminiError.message);
-    }
-  } else {
-    console.log("[Assistant API] GEMINI_API_KEY is not configured or placeholder.");
   }
 
   // 3. Last Fallback: Local rule-based assistant responses
