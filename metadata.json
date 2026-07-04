@@ -1,6 +1,6 @@
 {
   "name": "Smart City Complaint Intelligence",
   "description": "Interactive dual portal for citizens and authorities to submit, analyze with NVIDIA Mistral AI, assign, and track city complaints with live SLA timelines and hotspots map.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
