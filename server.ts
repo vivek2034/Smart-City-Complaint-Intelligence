@@ -178,7 +178,7 @@ Keep your answers structured, encouraging, professional, and clear. Feel free to
   return response.text || "I am here to support you. Let me know what questions you have about municipal complaints!";
 }
 
-// AI Complaint Analysis Route (Using Gemini as primary, NVIDIA NIM as backup, rule-based fallback if offline)
+// AI Complaint Analysis Route (Using Gemini only, rule-based fallback if offline)
 app.post("/api/analyze", async (req, res) => {
   const { title, description } = req.body;
 
@@ -186,7 +186,6 @@ app.post("/api/analyze", async (req, res) => {
     return res.status(400).json({ error: "Title and description are required" });
   }
 
-  // 1. Try Gemini Primary Model
   const geminiApiKey = process.env.GEMINI_API_KEY;
   const hasGeminiKey = geminiApiKey && geminiApiKey !== "MY_GEMINI_API_KEY" && geminiApiKey.trim() !== "";
 
@@ -196,72 +195,19 @@ app.post("/api/analyze", async (req, res) => {
       const parsed = await analyzeWithGemini(title, description);
       return res.json({ ...parsed, source: "gemini_primary" });
     } catch (geminiError: any) {
-      console.warn("[AI API] Gemini primary analysis failed, trying NVIDIA NIM backup:", geminiError.message);
+      console.warn("[AI API] Gemini analysis failed:", geminiError.message);
     }
   } else {
     console.log("[AI API] GEMINI_API_KEY is not configured or placeholder.");
   }
 
-  // 2. Try NVIDIA NIM Backup Model
-  const nvidiaApiKey = process.env.NVIDIA_API_KEY;
-  const hasNvidiaKey = nvidiaApiKey && nvidiaApiKey !== "MY_NVIDIA_API_KEY" && nvidiaApiKey.trim() !== "";
-
-  if (hasNvidiaKey) {
-    try {
-      console.log("[AI API] Sending request to NVIDIA NIM API as backup...");
-      const systemPrompt = `You are a Smart City Complaint Intelligence AI. Your task is to analyze municipal complaints submitted by citizens and classify them.
-You must respond with raw JSON ONLY. Do not wrap your response in markdown code blocks (such as \`\`\`json). The JSON must have exactly these keys:
-- category: must be one of ["Roads & Traffic", "Sanitation & Waste", "Water & Sewage", "Electricity & Power", "Public Safety", "Others"]
-- severity: must be one of ["High", "Medium", "Low"]
-- sentiment: must be a short description of the user's emotional state (e.g. "Frustrated", "Neutral", "Anxious", "Concerned")
-- keywords: must be an array of up to 5 relevant tags or keywords extracted from the complaint text`;
-
-      const userPrompt = `Complaint Title: "${title}"
-Complaint Description: "${description}"`;
-
-      const invokeUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-      const headers = {
-        "Authorization": `Bearer ${nvidiaApiKey}`,
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-      };
-
-      const payload = {
-        "model": "mistralai/mistral-large-3-675b-instruct-2512",
-        "messages": [
-          { "role": "system", "content": systemPrompt },
-          { "role": "user", "content": userPrompt }
-        ],
-        "max_tokens": 1024,
-        "temperature": 0.15,
-        "top_p": 1.00,
-        "stream": false
-      };
-
-      const response = await axios.post(invokeUrl, payload, { headers, timeout: 10000 });
-      let content = response.data.choices[0].message.content.trim();
-      console.log("[AI API] Raw NVIDIA Response:", content);
-
-      if (content.startsWith("```")) {
-        content = content.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
-      }
-
-      const parsed = JSON.parse(content);
-      return res.json({ ...parsed, source: "nvidia_mistral_backup" });
-    } catch (nvidiaError: any) {
-      console.warn("[AI API] NVIDIA NIM API backup failed:", nvidiaError.message);
-    }
-  } else {
-    console.log("[AI API] NVIDIA_API_KEY is not configured or placeholder.");
-  }
-
-  // 3. Last Fallback: Local rule-based processing
-  console.log("[AI API] Both AI endpoints unavailable. Using local rule-based analysis.");
+  // Fallback: Local rule-based processing
+  console.log("[AI API] Gemini AI unavailable. Using local rule-based analysis.");
   const fallbackResult = getFallbackAnalysis(title, description);
   return res.json({ ...fallbackResult, source: "fallback_rules" });
 });
 
-// AI Assistant Chat Route (Gemini primary, NVIDIA NIM backup, Local rule-based fallback)
+// AI Assistant Chat Route (Using Gemini only, rule-based fallback if offline)
 app.post("/api/assistant", async (req, res) => {
   const { messages, userContext } = req.body;
 
@@ -269,70 +215,23 @@ app.post("/api/assistant", async (req, res) => {
     return res.status(400).json({ error: "Messages array is required" });
   }
 
-  // 1. Try Gemini Primary Model
   const geminiApiKey = process.env.GEMINI_API_KEY;
   const hasGeminiKey = geminiApiKey && geminiApiKey !== "MY_GEMINI_API_KEY" && geminiApiKey.trim() !== "";
 
   if (hasGeminiKey) {
     try {
-      console.log("[Assistant API] Invoking Gemini API as primary for Assistant Conversation...");
+      console.log("[Assistant API] Invoking Gemini API for Assistant Conversation...");
       const reply = await assistantWithGemini(messages, userContext);
       return res.json({ reply, source: "gemini_primary" });
     } catch (geminiError: any) {
-      console.warn("[Assistant API] Gemini primary assistant failed, trying NVIDIA NIM backup:", geminiError.message);
+      console.warn("[Assistant API] Gemini assistant failed:", geminiError.message);
     }
   } else {
     console.log("[Assistant API] GEMINI_API_KEY is not configured or placeholder.");
   }
 
-  // 2. Try NVIDIA NIM Backup Model
-  const nvidiaApiKey = process.env.NVIDIA_API_KEY;
-  const hasNvidiaKey = nvidiaApiKey && nvidiaApiKey !== "MY_NVIDIA_API_KEY" && nvidiaApiKey.trim() !== "";
-
-  if (hasNvidiaKey) {
-    try {
-      console.log("[Assistant API] Sending request to NVIDIA NIM API as backup...");
-      const systemInstruction = `You are a helpful, smart, and friendly Smart City Complaint Intelligence Assistant named "Civic Assistant AI". 
-You are speaking to a user on our Smart City web application.
-User details: ID: ${userContext?.id || "unknown"}, Role: ${userContext?.role || "Citizen/Visitor"}.
-
-Your core purpose is to guide them about the portal, explain how our AI automatically determines Category, Severity (High, Medium, Low), Sentiment, and Keywords, assist citizens in tracking and writing helpful complaints, and advise authorities on prioritizations (always act on High-severity safety issues first).
-
-Keep your answers structured, encouraging, professional, and clear. Feel free to use bolding, bullet points, and appropriate emojis to format your answer beautifully. Use markdown formatting if needed. Do not make up fake URLs.`;
-
-      const apiMessages = [
-        { role: "system", content: systemInstruction },
-        ...messages.slice(-8) // Send up to last 8 messages for context
-      ];
-
-      const invokeUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-      const headers = {
-        "Authorization": `Bearer ${nvidiaApiKey}`,
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-      };
-
-      const payload = {
-        "model": "mistralai/mistral-large-3-675b-instruct-2512",
-        "messages": apiMessages,
-        "max_tokens": 1024,
-        "temperature": 0.3,
-        "top_p": 1.00,
-        "stream": false
-      };
-
-      const response = await axios.post(invokeUrl, payload, { headers, timeout: 12000 });
-      const reply = response.data.choices[0].message.content.trim();
-      return res.json({ reply, source: "nvidia_mistral_backup" });
-    } catch (nvidiaError: any) {
-      console.warn("[Assistant API] NVIDIA NIM API failed:", nvidiaError.message);
-    }
-  } else {
-    console.log("[Assistant API] NVIDIA_API_KEY is not configured or placeholder.");
-  }
-
-  // 3. Last Fallback: Local rule-based assistant responses
-  console.log("[Assistant API] All cloud AI model methods unavailable. Falling back to rule-based responses.");
+  // Last Fallback: Local rule-based assistant responses
+  console.log("[Assistant API] Gemini AI unavailable. Falling back to rule-based responses.");
   const lastUserMessage = messages[messages.length - 1]?.content || "";
   const lower = lastUserMessage.toLowerCase();
   let reply = "I am here to help you navigate the Smart City Complaint Portal. How can I help you today?";
