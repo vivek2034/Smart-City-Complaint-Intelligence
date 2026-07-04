@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile for citizens and officials",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "number": { "type": "string" },
+        "address": { "type": "string" },
+        "email": { "type": "string" },
+        "password": { "type": "string" },
+        "role": { "type": "string", "enum": ["citizen", "official"] }
+      },
+      "required": ["id", "name", "number", "address", "role"]
+    },
+    "Complaint": {
+      "title": "Smart City Complaint",
+      "description": "A citizen complaint submitted to the Smart City platform",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "image": { "type": "string" },
+        "severity": { "type": "string", "enum": ["High", "Medium", "Low"] },
+        "sentiment": { "type": "string" },
+        "keywords": { "type": "array" },
+        "status": { "type": "string", "enum": ["Pending", "Assigned", "Resolved"] },
+        "createdAt": { "type": "string" },
+        "citizenId": { "type": "string" },
+        "citizenName": { "type": "string" },
+        "assignedTo": { "type": "string" },
+        "timeline": { "type": "string" },
+        "timelineReason": { "type": "string" },
+        "authorityFeedback": { "type": "string" },
+        "assignedAt": { "type": "string" },
+        "resolvedAt": { "type": "string" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" },
+            "address": { "type": "string" }
+          }
+        }
+      },
+      "required": ["id", "title", "description", "category", "severity", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "#/entities/User",
+      "description": "User profiles"
+    },
+    "/complaints/{complaintId}": {
+      "schema": "#/entities/Complaint",
+      "description": "Submitted complaints"
+    }
+  }
+}
