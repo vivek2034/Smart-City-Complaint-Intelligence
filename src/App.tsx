@@ -358,7 +358,7 @@ export default function App() {
               onClick={() => navigateTo("/Authority")}
               className="text-slate-400 hover:text-white hover:underline font-bold transition-all cursor-pointer"
             >
-              🔒 Municipal Desk (/Authority)
+              🔒 Municipal Desk (Authority)
             </button>
             <div className="flex items-center gap-1">
               <Info className="w-3.5 h-3.5 text-indigo-400" />
