@@ -312,7 +312,11 @@ export default function CitizenPortal({ currentUser, allComplaints, onRefreshCom
     }
     setAnalyzing(true);
     try {
-      const response = await axios.post("/api/analyze", { title, description });
+      const response = await axios.post("/api/analyze", { 
+        title, 
+        description, 
+        image: imageBase64 || undefined 
+      });
       setAiResult({
         category: response.data.category,
         severity: response.data.severity,
