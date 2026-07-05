@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { createComplaint, getCitizenComplaints, Complaint, UserProfile } from "../firebase";
+import { 
+  createComplaint, 
+  getCitizenComplaints, 
+  registerUser, 
+  checkAadhaarExists, 
+  Complaint, 
+  UserProfile 
+} from "../firebase";
 import { 
   PlusCircle, 
   Search, 
@@ -12,7 +19,11 @@ import {
   X, 
   Loader2, 
   FileText,
-  TrendingDown
+  TrendingDown,
+  ShieldCheck,
+  Upload,
+  UserCheck,
+  Lock
 } from "lucide-react";
 import axios from "axios";
 import { getFallbackAnalysis } from "../utils/fallbackAnalysis";
@@ -23,12 +34,27 @@ interface CitizenPortalProps {
   currentUser: UserProfile;
   allComplaints: Complaint[];
   onRefreshComplaints: () => void;
+  onUpdateUser?: (updated: UserProfile) => void;
 }
 
-export default function CitizenPortal({ currentUser, allComplaints, onRefreshComplaints }: CitizenPortalProps) {
-  const [activeTab, setActiveTab] = useState<"submit" | "track">("submit");
+export default function CitizenPortal({ currentUser, allComplaints, onRefreshComplaints, onUpdateUser }: CitizenPortalProps) {
+  const [activeTab, setActiveTab] = useState<"submit" | "track" | "verify">("submit");
   const [myComplaints, setMyComplaints] = useState<Complaint[]>([]);
   const [loadingMy, setLoadingMy] = useState(false);
+
+  // Aadhaar ID verification states
+  const [idImageBase64, setIdImageBase64] = useState<string>("");
+  const [verifyingId, setVerifyingId] = useState(false);
+  const [idVerifyResult, setIdVerifyResult] = useState<{
+    isVerified: boolean;
+    idNumber: string;
+    idName: string;
+    documentType: string;
+    verificationReason: string;
+  } | null>(null);
+  const [idVerifyError, setIdVerifyError] = useState<string | null>(null);
+  const [savingVerifiedId, setSavingVerifiedId] = useState(false);
+  const [idSaveSuccess, setIdSaveSuccess] = useState(false);
 
   // Submit form state
   const [title, setTitle] = useState("");
@@ -91,6 +117,91 @@ export default function CitizenPortal({ currentUser, allComplaints, onRefreshCom
       setImageBase64(reader.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  // Convert uploaded Government ID image to base64
+  const handleIdImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIdVerifyError(null);
+    setIdVerifyResult(null);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setIdImageBase64(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleVerifyId = async () => {
+    if (!idImageBase64) {
+      setIdVerifyError("Please upload or drag a copy of your Government ID first.");
+      return;
+    }
+
+    setVerifyingId(true);
+    setIdVerifyError(null);
+    setIdVerifyResult(null);
+
+    try {
+      const response = await axios.post("/api/verify-id", { image: idImageBase64 });
+      if (response.data && response.data.error) {
+        throw new Error(response.data.error);
+      }
+      setIdVerifyResult(response.data);
+    } catch (err: any) {
+      console.error("[ID Verification Client] failed:", err);
+      setIdVerifyError(err.response?.data?.error || err.message || "An error occurred while verifying the ID document.");
+    } finally {
+      setVerifyingId(false);
+    }
+  };
+
+  const handleSaveVerifiedId = async () => {
+    if (!idVerifyResult || !idVerifyResult.isVerified) {
+      setIdVerifyError("Please successfully verify a valid ID first.");
+      return;
+    }
+
+    setSavingVerifiedId(true);
+    setIdVerifyError(null);
+
+    try {
+      // 1. Perform duplicate check in Firestore and local storage
+      const exists = await checkAadhaarExists(idVerifyResult.idNumber, currentUser.id);
+      if (exists) {
+        throw new Error(`Security Exception: The extracted ${idVerifyResult.documentType} ID (${idVerifyResult.idNumber}) is already linked and saved to another citizen account.`);
+      }
+
+      // 2. Register user updates
+      const updatedProfile: UserProfile = {
+        ...currentUser,
+        aadhaarNumber: idVerifyResult.idNumber,
+        aadhaarName: idVerifyResult.idName,
+        isVerified: true
+      };
+
+      if (idVerifyResult.idAddress) {
+        updatedProfile.address = idVerifyResult.idAddress;
+      }
+      if (idVerifyResult.idPhone) {
+        updatedProfile.number = idVerifyResult.idPhone;
+      }
+
+      await registerUser(updatedProfile);
+      
+      // 3. Notify parent app state to synchronize
+      if (onUpdateUser) {
+        onUpdateUser(updatedProfile);
+      }
+      
+      setIdSaveSuccess(true);
+    } catch (err: any) {
+      console.error("[Save ID] failed:", err);
+      setIdVerifyError(err.message || "An unexpected error occurred while linking your ID.");
+    } finally {
+      setSavingVerifiedId(false);
+    }
   };
 
   const geocodeAddress = async () => {
@@ -431,9 +542,30 @@ export default function CitizenPortal({ currentUser, allComplaints, onRefreshCom
         >
           Track My Complaints ({myComplaints.length})
         </button>
+        <button
+          onClick={() => {
+            setActiveTab("verify");
+            setIdVerifyError(null);
+            setIdVerifyResult(null);
+            setIdSaveSuccess(false);
+          }}
+          className={`pb-3 text-sm font-semibold border-b-2 px-4 flex items-center gap-1.5 cursor-pointer transition-all ${
+            activeTab === "verify"
+              ? "border-indigo-600 text-indigo-600"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4" />
+          Verify Gov ID (Aadhaar)
+          {currentUser.isVerified ? (
+            <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">Verified</span>
+          ) : (
+            <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-bold">Unverified</span>
+          )}
+        </button>
       </div>
 
-      {activeTab === "submit" ? (
+      {activeTab === "submit" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Form Box */}
           <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-5">
@@ -726,7 +858,9 @@ export default function CitizenPortal({ currentUser, allComplaints, onRefreshCom
             )}
           </div>
         </div>
-      ) : (
+      )}
+
+      {activeTab === "track" && (
         /* Track My Complaints Tab */
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Complaints List Panel */}
@@ -944,6 +1078,295 @@ export default function CitizenPortal({ currentUser, allComplaints, onRefreshCom
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {activeTab === "verify" && (
+        <div className="max-w-3xl mx-auto bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm space-y-6 animate-fadeIn">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-5">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="p-2 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5" />
+                </span>
+                <h2 className="text-lg font-bold text-slate-800 font-display">Government Identity Inspector</h2>
+              </div>
+              <p className="text-xs text-slate-500 max-w-xl leading-relaxed">
+                Protect your smart city profile and prevent fraudulent filings. Verify your national identity document (Aadhaar/PAN/Voter ID) securely with Gemini Vision.
+              </p>
+            </div>
+            {currentUser.isVerified && (
+              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/50 text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider flex items-center gap-1">
+                <UserCheck className="w-3 h-3" /> Fully Verified
+              </span>
+            )}
+          </div>
+
+          {/* Verification Status Card */}
+          {currentUser.isVerified ? (
+            <div className="space-y-6">
+              {/* Glowing Holographic Aadhaar Card */}
+              <div className="relative overflow-hidden bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 text-white rounded-2xl p-6 shadow-xl border border-indigo-500/20 max-w-md mx-auto aspect-[1.6/1] flex flex-col justify-between group">
+                {/* Holographic background shines */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/0 transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl"></div>
+
+                {/* Top header */}
+                <div className="flex items-start justify-between">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-bold text-indigo-300 tracking-wider uppercase block">Government of India</span>
+                    <span className="text-[11px] font-bold tracking-tight block">MUNICIPAL DIGITAL CERTIFICATE</span>
+                  </div>
+                  <div className="w-8 h-8 rounded bg-white/10 flex items-center justify-center text-indigo-300 border border-white/5 font-bold text-[10px] font-mono">
+                    ID
+                  </div>
+                </div>
+
+                {/* Middle details */}
+                <div className="flex items-center gap-4 my-auto">
+                  <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/30">
+                    <UserCheck className="w-6 h-6 text-indigo-400" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-[10px] text-indigo-300 font-medium">Verified Citizen Name</div>
+                    <div className="text-sm font-bold tracking-wide text-slate-100 font-sans">{currentUser.aadhaarName || currentUser.name}</div>
+                  </div>
+                </div>
+
+                {/* Bottom details */}
+                <div className="flex items-end justify-between border-t border-white/10 pt-3 mt-auto">
+                  <div>
+                    <div className="text-[8px] text-indigo-300 uppercase font-mono">Unique National ID</div>
+                    <div className="text-base font-bold font-mono tracking-widest text-indigo-200 mt-0.5">
+                      {currentUser.aadhaarNumber || "XXXX XXXX XXXX"}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-[9px] font-bold">
+                    <Lock className="w-2.5 h-2.5" /> SECURE LINKED
+                  </div>
+                </div>
+              </div>
+
+              {/* Secure Info Alert */}
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex gap-3 text-xs leading-relaxed text-slate-600 max-w-lg mx-auto">
+                <Lock className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <h4 className="font-bold text-slate-800">Account Access Protected</h4>
+                  <p>
+                    Your citizen identity is locked to this phone number (**{currentUser.number}**). No other citizen can submit complaints or register accounts using this Government ID. You can also log in securely using either your Phone number or this Verified Aadhaar ID.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : idSaveSuccess ? (
+            <div className="bg-emerald-50 border border-emerald-100 p-8 rounded-3xl text-center space-y-4 max-w-lg mx-auto">
+              <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-2xl font-bold">✓</div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-emerald-900 font-display">Identity Verified & Saved Successfully!</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Your Government ID credentials have been permanently secured and linked to your smart city profile. You are now a verified citizen, prioritizing your complaints in our municipal dashboard!
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setActiveTab("submit");
+                  setIdSaveSuccess(false);
+                  setIdVerifyResult(null);
+                  setIdImageBase64("");
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-6 py-2.5 rounded-xl transition-all cursor-pointer shadow-md shadow-emerald-600/10"
+              >
+                Go Submit Complaint
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Image upload area */}
+              {!idImageBase64 ? (
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Upload Copy of Government ID / Aadhaar Card</label>
+                  <div className="border-2 border-dashed border-slate-200 hover:border-indigo-400 bg-slate-50/50 hover:bg-slate-50 rounded-2xl p-8 text-center transition-all cursor-pointer relative group">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleIdImageChange}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    />
+                    <div className="space-y-3">
+                      <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto group-hover:scale-110 transition-all border border-indigo-100">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-700">Drag & drop or click to upload ID card</p>
+                        <p className="text-[10px] text-slate-400 mt-1">Supports PNG, JPG, JPEG up to 10MB. Image encoded directly to secure sandbox.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                  {/* Left: Card Upload Preview */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Uploaded Document Copy</label>
+                      <button
+                        onClick={() => {
+                          setIdImageBase64("");
+                          setIdVerifyResult(null);
+                          setIdVerifyError(null);
+                        }}
+                        className="text-xs text-rose-500 hover:underline flex items-center gap-0.5 cursor-pointer font-semibold"
+                      >
+                        <X className="w-3.5 h-3.5" /> Remove file
+                      </button>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-center aspect-[1.6/1] relative overflow-hidden group">
+                      <img
+                        src={idImageBase64}
+                        alt="Gov ID Document"
+                        referrerPolicy="no-referrer"
+                        className="max-h-full max-w-full rounded-lg object-contain shadow-md transition-transform duration-300 group-hover:scale-[1.03]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Right: Inspection Triage Board */}
+                  <div className="space-y-4">
+                    <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-4">
+                      <div className="flex items-center gap-2 border-b border-slate-200 pb-2.5">
+                        <Sparkles className="w-4 h-4 text-indigo-600" />
+                        <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider">AI Inspection Control Panel</h4>
+                      </div>
+
+                      {/* Not verified yet */}
+                      {!idVerifyResult && !verifyingId && (
+                        <div className="space-y-3">
+                          <p className="text-xs text-slate-600 leading-normal">
+                            Click below to run real-time document inspection. Our server-side Gemini Vision AI will analyze the card layout, extract legal text fields, and verify formatting integrity.
+                          </p>
+                          <button
+                            onClick={handleVerifyId}
+                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs py-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Sparkles className="w-4 h-4" /> Run AI ID Inspection
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Loading Inspector */}
+                      {verifyingId && (
+                        <div className="space-y-4 py-3">
+                          <div className="flex flex-col items-center justify-center text-slate-500 gap-2">
+                            <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                            <span className="text-xs font-bold text-slate-700">Gemini Vision OCR Active</span>
+                            <span className="text-[10px] text-slate-400">Inspecting layout, validating government holograms & extracting metadata...</span>
+                          </div>
+                          {/* Animated scanner bar */}
+                          <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden relative">
+                            <div className="bg-gradient-to-r from-indigo-500 to-indigo-700 h-full w-1/3 rounded-full animate-pulse absolute left-0 right-0"></div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Inspection Results displayed */}
+                      {idVerifyResult && (
+                        <div className="space-y-4 animate-fadeIn">
+                          {idVerifyResult.isVerified ? (
+                            <div className="space-y-3.5">
+                              <div className="bg-emerald-50 border border-emerald-200/50 p-3.5 rounded-xl flex gap-2.5 text-xs text-emerald-800">
+                                <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                                <div>
+                                  <h5 className="font-bold">ID Validated Successfully</h5>
+                                  <p className="text-[11px] mt-0.5">{idVerifyResult.verificationReason}</p>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2 border-t border-slate-200 pt-3">
+                                <div className="grid grid-cols-2 gap-3 text-xs">
+                                  <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Document Class</p>
+                                    <p className="font-bold text-slate-700 mt-0.5">{idVerifyResult.documentType}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Extracted ID Number</p>
+                                    <p className="font-mono font-bold text-slate-800 mt-0.5">{idVerifyResult.idNumber}</p>
+                                  </div>
+                                </div>
+                                <div className="text-xs pt-1">
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Extracted Legal Name</p>
+                                  <p className="font-bold text-slate-700 mt-0.5">{idVerifyResult.idName}</p>
+                                </div>
+                                {idVerifyResult.idAddress && (
+                                  <div className="text-xs pt-1">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Extracted Address</p>
+                                    <p className="font-bold text-slate-700 mt-0.5">{idVerifyResult.idAddress}</p>
+                                  </div>
+                                )}
+                                {idVerifyResult.idPhone && (
+                                  <div className="text-xs pt-1">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Extracted Phone Number</p>
+                                    <p className="font-bold text-slate-700 mt-0.5">{idVerifyResult.idPhone}</p>
+                                  </div>
+                                )}
+                              </div>
+
+                              <button
+                                onClick={handleSaveVerifiedId}
+                                disabled={savingVerifiedId}
+                                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold text-xs py-3 rounded-xl transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5 cursor-pointer mt-1"
+                              >
+                                {savingVerifiedId ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" /> Securing Certificate...
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserCheck className="w-4 h-4" /> Link Verified ID to Profile
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <div className="bg-rose-50 border border-rose-200/50 p-3.5 rounded-xl flex gap-2.5 text-xs text-rose-800">
+                                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                                <div>
+                                  <h5 className="font-bold">AI Inspection Rejected</h5>
+                                  <p className="text-[11px] mt-0.5">{idVerifyResult.verificationReason}</p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setIdImageBase64("");
+                                  setIdVerifyResult(null);
+                                  setIdVerifyError(null);
+                                }}
+                                className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs py-2.5 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer"
+                              >
+                                Try Different Image
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Error messages displayed */}
+              {idVerifyError && (
+                <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-2xl flex gap-3 text-xs leading-normal">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <h5 className="font-bold">Security Alert</h5>
+                    <p>{idVerifyError}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
