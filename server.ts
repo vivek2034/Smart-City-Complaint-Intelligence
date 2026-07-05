@@ -86,26 +86,41 @@ function getGeminiClient(): GoogleGenAI | null {
   return geminiClient;
 }
 
-// Backup function using gemini-3.5-flash for structured complaint analysis
-async function analyzeWithGemini(title: string, description: string) {
+// Backup function using gemini-2.5-flash for structured complaint analysis
+async function analyzeWithGemini(title: string, description: string, image?: string) {
   const client = getGeminiClient();
   if (!client) {
     throw new Error("Gemini API Client could not be initialized (key missing or invalid).");
   }
 
   const systemInstruction = `You are a Smart City Complaint Intelligence AI. Your task is to analyze municipal complaints submitted by citizens and classify them.
+If an image is attached, inspect it carefully to verify the issue, confirm the correct category and severity, and extract extra context.
 You must respond with raw JSON ONLY. The JSON must have exactly these keys:
 - category: must be one of ["Roads & Traffic", "Sanitation & Waste", "Water & Sewage", "Electricity & Power", "Public Safety", "Others"]
 - severity: must be one of ["High", "Medium", "Low"]
 - sentiment: must be a short description of the user's emotional state (e.g. "Frustrated", "Neutral", "Anxious", "Concerned")
-- keywords: must be an array of up to 5 relevant tags or keywords extracted from the complaint text`;
+- keywords: must be an array of up to 5 relevant tags or keywords extracted from the complaint text and visual evidence`;
 
   const userPrompt = `Complaint Title: "${title}"
 Complaint Description: "${description}"`;
 
+  const contents: any[] = [userPrompt];
+
+  if (image && image.startsWith("data:")) {
+    const match = image.match(/^data:([^;]+);base64,(.+)$/);
+    if (match) {
+      contents.push({
+        inlineData: {
+          mimeType: match[1],
+          data: match[2]
+        }
+      });
+    }
+  }
+
   const response = await client.models.generateContent({
-    model: "gemini-3.5-flash",
-    contents: userPrompt,
+    model: "gemini-2.5-flash",
+    contents: contents,
     config: {
       systemInstruction: systemInstruction,
       responseMimeType: "application/json",
@@ -139,7 +154,7 @@ Complaint Description: "${description}"`;
   return JSON.parse(text);
 }
 
-// Backup function using gemini-3.5-flash for friendly assistant conversation
+// Backup function using gemini-2.5-flash for friendly assistant conversation
 async function assistantWithGemini(messages: any[], userContext: any): Promise<string> {
   const client = getGeminiClient();
   if (!client) {
@@ -167,7 +182,7 @@ Keep your answers structured, encouraging, professional, and clear. Feel free to
   });
 
   const response = await client.models.generateContent({
-    model: "gemini-3.5-flash",
+    model: "gemini-2.5-flash",
     contents: contents,
     config: {
       systemInstruction: systemInstruction,
@@ -180,7 +195,7 @@ Keep your answers structured, encouraging, professional, and clear. Feel free to
 
 // AI Complaint Analysis Route (Using Gemini only, rule-based fallback if offline)
 app.post("/api/analyze", async (req, res) => {
-  const { title, description } = req.body;
+  const { title, description, image } = req.body;
 
   if (!title || !description) {
     return res.status(400).json({ error: "Title and description are required" });
@@ -192,7 +207,7 @@ app.post("/api/analyze", async (req, res) => {
   if (hasGeminiKey) {
     try {
       console.log("[AI API] Invoking Gemini API for Structured Analysis...");
-      const parsed = await analyzeWithGemini(title, description);
+      const parsed = await analyzeWithGemini(title, description, image);
       return res.json({ ...parsed, source: "gemini_primary" });
     } catch (geminiError: any) {
       console.warn("[AI API] Gemini analysis failed:", geminiError.message);
