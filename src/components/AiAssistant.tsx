@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Sparkles, User, Bot, HelpCircle, Loader2 } from "lucide-react";
 import axios from "axios";
+import { getFallbackAssistantResponse } from "../utils/fallbackAssistant";
 
 interface Message {
   role: "user" | "assistant";
@@ -70,12 +71,17 @@ How can I assist you in building or managing our city today?`
       const reply = response.data.reply;
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch (error) {
-      console.error("[Assistant UI] Error calling chat:", error);
+      console.warn("[Assistant UI] Error calling chat API, falling back to local assistant analyzer:", error);
+      const currentMessages = [
+        ...messages.map(m => ({ role: m.role, content: m.content })),
+        { role: "user", content: queryText }
+      ];
+      const localReply = getFallbackAssistantResponse(currentMessages);
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "I'm having a bit of trouble connecting to our core AI servers. Here is a helpful answer: Citizens can easily submit complaints with photos. Our system automatically categorizes, estimates timelines, and assigns tasks to departmental teams."
+          content: `*(Local Offline Assistant Mode)*\n\n${localReply}`
         }
       ]);
     } finally {
@@ -93,7 +99,7 @@ How can I assist you in building or managing our city today?`
           </div>
           <div>
             <h4 className="font-semibold text-sm font-display leading-tight">Civic Assistant AI</h4>
-            <p className="text-[10px] text-indigo-200">NVIDIA Mistral Powered</p>
+            <p className="text-[10px] text-indigo-200">Gemini Powered AI</p>
           </div>
         </div>
         <span className="text-[10px] bg-indigo-500 font-semibold px-2 py-0.5 rounded-full text-indigo-100">
