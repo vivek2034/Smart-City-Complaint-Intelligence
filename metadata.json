@@ -1,6 +1,6 @@
 {
   "name": "Smart City Complaint Intelligence",
-  "description": "Interactive dual portal for citizens and authorities to submit, analyze with NVIDIA Mistral AI, assign, and track city complaints with live SLA timelines and hotspots map.",
+  "description": "An AI-powered Decision Intelligence Platform optimizing citizen services. Seamlessly submit urban issues with text or images—processed instantly by Vertex AI and Gemini—to generate actionable insights, automate municipal responses, and improve community well-being through transparent, data-driven workflows.",
   "requestFramePermissions": ["geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
