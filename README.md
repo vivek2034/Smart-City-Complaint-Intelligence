@@ -1,4 +1,4 @@
-# CivixVerify: AI-Powered Smart City Grievance & Trust Portal
+# SCCI: AI-Powered Smart City Grievance & Trust Portal
 ### *Empowering Municipal Governance, Citizen Trust, and Automated Public Infrastructure Management via Multimodal Gemini Vision & Google Cloud*
 
 ---
@@ -11,9 +11,9 @@
 
 ## 1. Brief About the Idea
 
-**CivixVerify** is an enterprise-grade, intelligent smart city platform that bridges the communication and trust gap between citizens and municipal administrators. In traditional civic management portals, public grievance redressal channels suffer from high friction, anonymous spam, identity fraud, and severe classification bottlenecks.
+**SCCI** is an enterprise-grade, intelligent smart city platform that bridges the communication and trust gap between citizens and municipal administrators. In traditional civic management portals, public grievance redressal channels suffer from high friction, anonymous spam, identity fraud, and severe classification bottlenecks.
 
-CivixVerify solves this through a **trust-anchored onboarding ecosystem** powered by the **Google Gemini SDK** and **Google Cloud Firestore**. By integrating a state-of-the-art **AI Government ID Inspector**, the portal allows users to upload a physical copy of their national identification card (such as an Indian Aadhaar Card, PAN Card, Voter ID, or Driving License). The system performs deep multi-modal computer vision analysis to:
+SCCI solves this through a **trust-anchored onboarding ecosystem** powered by the **Google Gemini SDK** and **Google Cloud Firestore**. By integrating a state-of-the-art **AI Government ID Inspector**, the portal allows users to upload a physical copy of their national identification card (such as an Indian Aadhaar Card, PAN Card, Voter ID, or Driving License). The system performs deep multi-modal computer vision analysis to:
 1.  **Validate Layout & Document Integrity:** Detect and flag invalid, dark, or spoofed images to maintain platform trust.
 2.  **Instant Structured OCR Extraction:** Automatically extract critical fields—including **Legal Name, 12-digit ID Number, Residential Address, and Registered Mobile Number**—directly from the image.
 3.  **One-Click Auto-Fill:** Instantly populates and locks the registration card with verified credentials, mitigating human keying errors and onboarding fatigue.
@@ -36,7 +36,7 @@ We approached the common municipal grievance bottleneck by building a robust ful
 
 ### B. Real-World Impact & Problem Solved
 
-| Affected Stakeholder | Traditional Pain Point | CivixVerify Practical Impact |
+| Affected Stakeholder | Traditional Pain Point | SCCI Practical Impact |
 | :--- | :--- | :--- |
 | **Citizens & Community** | - Registration forms are incredibly long and tedious.<br>- Lack of feedback leads to citizens feeling ignored.<br>- Vague location descriptions make finding issues difficult. | - **One-click sign-up** via ID photo upload.<br>- Real-time SLA progress timers and transparency logs.<br>- GPS interactive marker pins ensure repair teams arrive exactly where needed. |
 | **Municipal Organizations** | - Platforms flooded with fake, duplicate, or duplicate spam reports.<br>- Heavy administrative overhead to sort and assign issues manually. | - **Verified-Identity-Only** submissions protect resources.<br>- Automated severity routing ranks critical hazards (e.g., open drains) instantly. |
@@ -82,15 +82,15 @@ We approached the common municipal grievance bottleneck by building a robust ful
 ## 3. Opportunities, Differentiation, & Unique Selling Point (USP)
 
 ### A. Differentiation from Competitors
-Existing administrative portals are typically simple forms that lack smart features. The comparison below illustrates CivixVerify's key differentiators:
+Existing administrative portals are typically simple forms that lack smart features. The comparison below illustrates SCCI's key differentiators:
 
-1.  **Identity Verification vs. SIM Registration:** Most portals verify users via phone-based OTP, which only proves ownership of a SIM card. CivixVerify verifies national documents, ensuring accountability.
+1.  **Identity Verification vs. SIM Registration:** Most portals verify users via phone-based OTP, which only proves ownership of a SIM card. SCCI verifies national documents, ensuring accountability.
 2.  **Multimodal Intake:** Traditional platforms require users to fill out complex categories manually. Our platform analyzes photos of street damage to auto-classify categories, severity, and urgency.
 3.  **Conversational Assistance:** Instead of standard FAQ menus, an AI Municipal Agent guides users through emergency preparedness, legal codes, and active ticket status.
 
 ### B. Unique Selling Point (USP)
 > **"Visual Trust, Zero Friction."**
-> CivixVerify turns registration into a secure, single-step onboarding process. By analyzing a national ID, it extracts name, address, and mobile number, validating identity and auto-filling profile forms in under three seconds. This provides robust accountability without administrative friction.
+> SCCI turns registration into a secure, single-step onboarding process. By analyzing a national ID, it extracts name, address, and mobile number, validating identity and auto-filling profile forms in under three seconds. This provides robust accountability without administrative friction.
 
 ---
 
@@ -166,7 +166,7 @@ Existing administrative portals are typically simple forms that lack smart featu
 ### Frame A: ID Verification Suite (Signup Phase)
 ```
 +-----------------------------------------------------------------------------------+
-| CivixVerify | Secure Government Identity Verification Setup                      |
+| SCCI | Secure Government Identity Verification Setup                      |
 +-----------------------------------------------------------------------------------+
 |                                                                                   |
 |  Select Identity Card Type: [ Indian Aadhaar Card (UIDAI) ] [V]                   |
@@ -191,7 +191,7 @@ Existing administrative portals are typically simple forms that lack smart featu
 ### Frame B: Citizen Workspace Dashboard
 ```
 +-----------------------------------------------------------------------------------+
-| CivixVerify Portal                                        [AI Assistant] [Ramesh] |
+| SCCI Portal                                        [AI Assistant] [Ramesh] |
 +-----------------------------------------------------------------------------------+
 |  +-------------------------------------+  +------------------------------------+  |
 |  | File A Public Grievance             |  | Interactive Incident Geo-Map       |  |
