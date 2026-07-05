@@ -42,6 +42,9 @@ export interface UserProfile {
   email?: string;
   password?: string;
   role: "citizen" | "official";
+  aadhaarNumber?: string;
+  aadhaarName?: string;
+  isVerified?: boolean;
 }
 
 export interface Complaint {
@@ -185,6 +188,60 @@ export async function getUser(id: string): Promise<UserProfile | null> {
   // Fallback to offline cache
   const localUsers = getLocalUsers();
   return localUsers[id] || null;
+}
+
+export async function getUserByAadhaar(aadhaarNumber: string): Promise<UserProfile | null> {
+  try {
+    const q = query(collection(db, USERS_COLLECTION), where("aadhaarNumber", "==", aadhaarNumber));
+    const querySnapshot = await getDocs(q);
+    let found: UserProfile | null = null;
+    querySnapshot.forEach((doc) => {
+      found = doc.data() as UserProfile;
+    });
+    if (found) {
+      saveLocalUser(found);
+      return found;
+    }
+  } catch (err) {
+    console.warn("[Firebase] getUserByAadhaar failed, falling back to local storage:", err);
+  }
+
+  // Local storage fallback
+  const localUsers = getLocalUsers();
+  for (const userId of Object.keys(localUsers)) {
+    if (localUsers[userId].aadhaarNumber === aadhaarNumber) {
+      return localUsers[userId];
+    }
+  }
+  return null;
+}
+
+export async function checkAadhaarExists(aadhaarNumber: string, currentUserId?: string): Promise<boolean> {
+  try {
+    const q = query(collection(db, USERS_COLLECTION), where("aadhaarNumber", "==", aadhaarNumber));
+    const querySnapshot = await getDocs(q);
+    let exists = false;
+    querySnapshot.forEach((doc) => {
+      if (currentUserId && doc.id !== currentUserId) {
+        exists = true;
+      } else if (!currentUserId) {
+        exists = true;
+      }
+    });
+    if (exists) return true;
+  } catch (err) {
+    console.warn("[Firebase] checkAadhaarExists failed, falling back to local storage:", err);
+  }
+
+  // Fallback to offline cache
+  const localUsers = getLocalUsers();
+  for (const userId of Object.keys(localUsers)) {
+    if (currentUserId && userId === currentUserId) continue;
+    if (localUsers[userId].aadhaarNumber === aadhaarNumber) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Complaint Functions
