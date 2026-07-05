@@ -443,12 +443,12 @@ export default function LoginPortal({ initialRole = "citizen", onLoginSuccess, o
               <span className="block font-bold text-slate-500 text-[10px] uppercase tracking-wider mb-1">Database Official Logins:</span>
               <div className="flex flex-col gap-1">
                 <div className="bg-white p-1.5 rounded border border-slate-100 flex justify-between">
-                  <span>ID: <strong className="text-indigo-600">admin@city.gov.in</strong></span>
-                  <span>Pass: <strong className="text-slate-600">password123</strong></span>
+                  <span>Email: <strong className="text-indigo-600">Xyz@mail.com</strong></span>
+                  <span>No.: <strong className="text-slate-600">90xxxxxxxxx</strong></span>
                 </div>
                 <div className="bg-white p-1.5 rounded border border-slate-100 flex justify-between">
-                  <span>ID: <strong className="text-indigo-600">official@city.gov.in</strong></span>
-                  <span>Pass: <strong className="text-slate-600">officialpass</strong></span>
+                  <span>Email: <strong className="text-indigo-600">abc@mail.com</strong></span>
+                  <span>No.: <strong className="text-slate-600">80xxxxxxxx</strong></span>
                 </div>
               </div>
             </div>
