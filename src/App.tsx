@@ -97,6 +97,11 @@ export default function App() {
     navigateTo("/");
   };
 
+  const handleUpdateUser = (updatedUser: UserProfile) => {
+    setCurrentUser(updatedUser);
+    localStorage.setItem("smartcity_user", JSON.stringify(updatedUser));
+  };
+
   const handleSelectComplaint = (c: Complaint) => {
     setSelectedComplaint(c);
     // If selecting a complaint, make sure we show the map visually on the home screen
@@ -320,6 +325,7 @@ export default function App() {
                       currentUser={currentUser}
                       allComplaints={complaints}
                       onRefreshComplaints={refreshComplaintsList}
+                      onUpdateUser={handleUpdateUser}
                     />
                   );
                 } else {
@@ -358,7 +364,7 @@ export default function App() {
               onClick={() => navigateTo("/Authority")}
               className="text-slate-400 hover:text-white hover:underline font-bold transition-all cursor-pointer"
             >
-              🔒 Municipal Desk (Authority)
+              🔒 Municipal Desk (/Authority)
             </button>
             <div className="flex items-center gap-1">
               <Info className="w-3.5 h-3.5 text-indigo-400" />
