@@ -1,231 +1,270 @@
-# SCCi: AI-Powered Smart City Grievance & Trust Portal
+# CivixVerify: AI-Powered Smart City Grievance & Trust Portal
 ### *Empowering Municipal Governance, Citizen Trust, and Automated Public Infrastructure Management via Multimodal Gemini Vision & Google Cloud*
 
 ---
-
 ## 🚀 Live Demo & Development URLs
 *   **Development App URL:** [https://smart-city-complaint-intelligence.vercel.app/](https://smart-city-complaint-intelligence.vercel.app/)
 *   **Shared App URL:** [https://smart-city-complaint-intelligence.vercel.app/](https://smart-city-complaint-intelligence.vercel.app/)
+
 
 ---
 
 ## 1. Brief About the Idea
 
-**SCCi** (Smart City Complaint Intelligence) is a state-of-the-art dual-portal platform built for modern municipal administrations and citizens. The core philosophy of SCCi is that **public complaint channels require a high trust score to succeed**.
+**CivixVerify** is an enterprise-grade, intelligent smart city platform that bridges the communication and trust gap between citizens and municipal administrators. In traditional civic management portals, public grievance redressal channels suffer from high friction, anonymous spam, identity fraud, and severe classification bottlenecks.
 
-By integrating **Gemini Multi-Modal Vision and Google Cloud Firestore**, SCCi secures civic platforms from spam, anonymous vandalism, and duplicates while eliminating registration hurdles. When citizens sign up, they can upload a copy of their national identity document (e.g., Aadhaar Card, PAN Card, Voter ID, or Passport). The backend calls **Gemini** to run real-time document OCR, validating the document's structure, verifying layout integrity, and instantly **extracting and auto-filling the citizen's Legal Name, Home/Residential Address, and Registered Phone Number** onto their profile. 
+CivixVerify solves this through a **trust-anchored onboarding ecosystem** powered by the **Google Gemini SDK** and **Google Cloud Firestore**. By integrating a state-of-the-art **AI Government ID Inspector**, the portal allows users to upload a physical copy of their national identification card (such as an Indian Aadhaar Card, PAN Card, Voter ID, or Driving License). The system performs deep multi-modal computer vision analysis to:
+1.  **Validate Layout & Document Integrity:** Detect and flag invalid, dark, or spoofed images to maintain platform trust.
+2.  **Instant Structured OCR Extraction:** Automatically extract critical fields—including **Legal Name, 12-digit ID Number, Residential Address, and Registered Mobile Number**—directly from the image.
+3.  **One-Click Auto-Fill:** Instantly populates and locks the registration card with verified credentials, mitigating human keying errors and onboarding fatigue.
 
-This establishes cryptographically secured, verified citizen accounts that help city administrators prioritize, geocode, assign, and resolve actual issues with 100% confidence.
-
----
-
-## 2. Approach, Real-World Impact, and Workflow
-
-### A. Approach to the Problem Statement
-Most cities suffer from a disjointed public works workflow. We approached this problem by creating a full-stack, cloud-native architecture that bridges the gap between **trusted citizen reporting** and **automated municipal dispatch**.
-
-1.  **Strict Security/Verification Gates:** Instead of standard open forms where anyone can file fake issues, we implemented a server-side route that proxies identity image bytes to **Gemini 2.5/3.5 Flash** for deep analysis, verifying whether the document is a valid national ID and extracting standard details.
-2.  **Multimodal Complaint Intake:** Citizens can drag map markers or enter an address (which geocodes automatically to latitude/longitude) and upload a photo of the incident (e.g., street potholes, water leakages).
-3.  **Automated Machine Analysis:** The backend uses Gemini and rules-based fallback engines to classify complaints, evaluate severity levels (High/Medium/Low), identify sentiments, and tag metadata words, reducing sorting delays.
-4.  **Actionable Authority Portal:** Designed with elegant analytics boards using Recharts/D3 to track municipal SLAs, assign tasks to engineers, and view real-time geospatial hotspots.
+Once registered, citizens gain access to an interactive spatial map interface to report incidents (e.g., potholes, sewage leaks, power outages) and consult with a municipal AI assistant. In parallel, government departments use the administrative command center to evaluate AI-prioritized workflows, manage service level agreements (SLAs), and view analytical hotspots.
 
 ---
 
-### B. Real-World Problem Addressed & Practical Impact
+## 2. Problem Translation, Real-World Impact, & Technical Architecture
 
-| Aspect | The Traditional Problem | The SCCi Solution |
+### A. Translation into Google Cloud & AI Workflows
+We approached the common municipal grievance bottleneck by building a robust full-stack TypeScript environment configured with a headless API gateway. Rather than using mock configurations, we engineered real, high-throughput pipelines leveraging Google Cloud services:
+
+*   **Multimodal AI Engine (Google Gemini SDK):** Using `@google/genai` on Node.js/Express, we pass raw document files straight to the `gemini-2.5-flash` or `gemini-3.5-flash` model. Using developer-configured system prompts and tight JSON Schema parameters, Gemini parses unstructured image pixels and yields standardized JSON structures. This bypasses legacy OCR scrapers that struggle with skew, shadows, or bilingual documents.
+*   **Trust Binding & Integrity Gates (Google Cloud Firestore):** Firestore NoSQL acts as our real-time synchronization store. Once Gemini extracts identity data, the backend queries Firestore indexes to ensure the national ID number is not already registered under another account, cryptographically locking individual identifiers to specific user profiles and preventing identity duplication.
+*   **Geospatial Mapping & Incident Geocoding:** Addresses provided by citizens (or auto-filled from verified Aadhaar records) are parsed and geocoded into precise GPS coordinates (Latitude/Longitude), mapping reports to live-updating Leaflet coordinate layers.
+*   **Automated Classification Router:** Every submitted grievance is classified, tagged, and analyzed for hazard severity through an LLM classification pipeline, optimizing routing to the correct department (e.g., Public Works, Water Authority, Electricity Board).
+
+---
+
+### B. Real-World Impact & Problem Solved
+
+| Affected Stakeholder | Traditional Pain Point | CivixVerify Practical Impact |
 | :--- | :--- | :--- |
-| **Spam / Fake Grievances** | Public databases are filled with duplicate, invalid, or anonymous complaints, leading to wasted surveyor inspection trips. | **AI Aadhaar/ID Verification** guarantees that every report is attached to a real, unique citizen profile. |
-| **Friction in Profile Onboarding** | Manual forms with 15+ fields (Address, Phone, Name, UID) discourage civic engagement. | **Single-click OCR** extracts and auto-fills Name, Phone, and Address in under 3 seconds using Gemini Vision. |
-| **Vague/Mismapped Incidents** | "Pothole near the old grocery store" makes it impossible for repair trucks to locate. | Interactive mapping geocodes text strings and allows users to **drag pinpoint location markers** with exact coordinates. |
-| **Response Delays & Backlogs** | Complaints sit in standard email lists without clear prioritization. | **Automated SLA Engine** ranks tickets based on AI-determined severity and maps them into a real-time command center. |
+| **Citizens & Community** | - Registration forms are incredibly long and tedious.<br>- Lack of feedback leads to citizens feeling ignored.<br>- Vague location descriptions make finding issues difficult. | - **One-click sign-up** via ID photo upload.<br>- Real-time SLA progress timers and transparency logs.<br>- GPS interactive marker pins ensure repair teams arrive exactly where needed. |
+| **Municipal Organizations** | - Platforms flooded with fake, duplicate, or duplicate spam reports.<br>- Heavy administrative overhead to sort and assign issues manually. | - **Verified-Identity-Only** submissions protect resources.<br>- Automated severity routing ranks critical hazards (e.g., open drains) instantly. |
+| **Cities & Urban Planners** | - Unstructured complaint logs provide no long-term insight into infrastructure decline. | - Real-time spatial heatmaps reveal systemic, recurring problem areas. |
 
 ---
 
-### C. Core Architecture & Data Workflow
-The system processes data securely from the moment a photo or document is uploaded to the moment an engineering crew marks a task as resolved.
+### C. Technical Architecture & Structural Workflow
 
 ```
-+──────────────────────────+
-|  Citizen Onboarding:     |
-|  Upload Aadhaar / ID     |
-+────────────┬─────────────+
-             │ Base64 Image
-             ▼
-+──────────────────────────+     Validated Details      +──────────────────────────+
-|   Server-side Gemini     | ─────────────────────────> |  Auto-Fill Profile Form  |
-|   OCR & Structure Check  |                            |  Name, Phone, Address    |
-+──────────────────────────+                            +────────────┬─────────────+
-                                                                     │
-                                                                     ▼
-+──────────────────────────+      Geocoded Incident     +──────────────────────────+
-|  Incident Submission:    | <───────────────────────── | Firestore Secure DB:     |
-|  Geocoded Map Location   |                            | Citizen Record Secured   |
-+────────────┬─────────────+                            +──────────────────────────+
-             │
-             ▼
-+──────────────────────────+     Real-time Analysis     +──────────────────────────+
-|  NVIDIA Mistral /        | ─────────────────────────> |  Executive Dashboard &   |
-|  Gemini Issue Classifier |                            |  Interactive Map Marker  |
-+──────────────────────────+                            +──────────────────────────+
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                       CLIENT VIEW                                      │
+│                                                                                        │
+│     [Citizen Sign-Up]  ───────> Upload ID ───────> Verify  ───────> Form Auto-Filled   │
+│            │                                                                 ▲         │
+│            ▼ (Authenticated with Profile Locked)                             │         │
+│     [Grievance Panel]  ───────> File Complaint ───> Upload Photo ────────────┼─┐       │
+│            │                                                                 │ │       │
+│            ▼                                                                 │ │       │
+│     [Smart City Chat]  ◄─────── Consult Assistant                            │ │       │
+└────────────┬─────────────────────────────────────────────────────────────────┼─┼───────┘
+             │                                                                 │ │
+             │ REST API Queries (SSL Secured)                                  │ │
+             ▼                                                                 │ │
+┌──────────────────────────────────────────────────────────────────────────────┼─┼───────┐
+│                                   API GATEWAY                                │ │
+│                                                                              │ │
+│     [Express Backend API Router]                                             │ │
+│            ├─── /api/verify-id  ─────────────────────────────────────────────┘ │
+│            ├─── /api/analyze-incident ─────────────────────────────────────────┘
+│            └─── /api/chat-assistant                                            │
+└────────────┬────────────────────────────────────────┬──────────────────────────┼───────┘
+             │                                        │                          │
+             ▼ SDK Calls                              ▼                          ▼
+┌────────────────────────────────────────┐┌────────────────────────┐┌────────────────────┐
+│         Google Gemini Models           ││  Google Cloud Firestore││  Mapping Engine    │
+│  (Multimodal OCR & Layout Analysis)   ││  (NoSQL DB & Indexes)  ││ (Leaflet/Geocodes) │
+└────────────────────────────────────────┘└────────────────────────┘└────────────────────┘
 ```
 
 ---
 
-## 3. Opportunities, Differentiation, & USP
+## 3. Opportunities, Differentiation, & Unique Selling Point (USP)
 
-### A. How Different Is It from Existing Ideas?
-- **Vision-First Trust Layer:** Standard options use OTP SMS verification, which only proves ownership of a SIM card, not identity. SCCi uses multi-modal vision models to read and verify formal ID cards instantly.
-- **Bi-directional AI Processing:** It uses AI on the *citizen side* (document inspection, auto-fill, chat assistant) and AI on the *official side* (complaint auto-tagging, severity prediction, sentiment monitoring).
-- **Relational Data Mapping:** It actively checks Firestore to prevent duplicate registration of the same ID number under different accounts, protecting user identity.
+### A. Differentiation from Competitors
+Existing administrative portals are typically simple forms that lack smart features. The comparison below illustrates CivixVerify's key differentiators:
+
+1.  **Identity Verification vs. SIM Registration:** Most portals verify users via phone-based OTP, which only proves ownership of a SIM card. CivixVerify verifies national documents, ensuring accountability.
+2.  **Multimodal Intake:** Traditional platforms require users to fill out complex categories manually. Our platform analyzes photos of street damage to auto-classify categories, severity, and urgency.
+3.  **Conversational Assistance:** Instead of standard FAQ menus, an AI Municipal Agent guides users through emergency preparedness, legal codes, and active ticket status.
 
 ### B. Unique Selling Point (USP)
-> **"Zero-Friction Trust Onboarding"**
-> By utilizing Gemini’s rapid structured JSON output schema, the application takes an image of an ID card and instantly verifies, extracts, and auto-fills the registration page with the user's name, registered address, and phone number. This offers complete municipal validation without any of the manual data-entry fatigue.
+> **"Visual Trust, Zero Friction."**
+> CivixVerify turns registration into a secure, single-step onboarding process. By analyzing a national ID, it extracts name, address, and mobile number, validating identity and auto-filling profile forms in under three seconds. This provides robust accountability without administrative friction.
 
 ---
 
 ## 4. Key Features Offered by the Solution
 
-1.  **🛡️ Live Government ID Verification:** Real-time upload interface supporting Indian Aadhaar, PAN Card, Voter ID, and other national documents.
-2.  **📋 Auto-Extraction & Profile Binding:** Extracts legal details (Name, Address, Phone number, ID number) and auto-fills the profile.
-3.  **📍 Geographic Geocoding Map Control:** Lets citizens enter physical addresses or drag pins to pinpoint the exact latitude and longitude of public issues.
-4.  **🤖 Smart City AI Assistant:** A helpful chatbot that answers citizen inquiries regarding city guidelines, ordinances, and complaint status using context history.
-5.  **📈 Executive Authority command center:** Full analytical screen for city managers, including status boards, maps, and category breakdowns.
-6.  **🚦 Automated Severity Priority Router:** Uses LLMs to evaluate issues and rank critical hazards (High) higher on the department queue.
-7.  **⏱️ Interactive Timeline SLAs:** Tracks resolution time based on severity, displaying color-coded timers to keep public departments accountable.
+### 1. Citizen Interface
+*   **🛡️ Multi-Document ID Inspector:** Instantly verifies Indian Aadhaar, PAN Cards, Driver’s Licenses, and Passports.
+*   **📋 Single-Tap Profile Autofill:** Automatically populates user profile forms using structured OCR.
+*   **📍 Spatial Geocoding Map:** Drag-and-drop map markers to pin precise incident locations.
+*   **🤖 City Council AI Assistant:** Real-time chat helper that references local codes, safety warnings, and ticket statuses.
+*   **⏱️ Live SLA Redressal Tracker:** Visual timeline logs showing exactly when a ticket was received, assigned, and resolved.
+
+### 2. Municipal Authority Dashboard
+*   **🗺️ Interactive Geospatial Map:** Dynamic map clusters showing the distribution of complaints across city zones.
+*   **📊 Performance Metrics & Analytics:** Interactive charts (using Recharts and D3) tracking ticket categories, weekly volume, and resolution rates.
+*   **🚦 Intelligent Severity Routing:** Automatically prioritizes high-hazard complaints to ensure fast resolution.
+*   **⚙️ SLA Administrative Controls:** Tools for government staff to assign engineers, log field updates, and close tickets.
 
 ---
 
-## 5. Process Flow Diagram
+## 5. Process Flow Diagram (Detailed Use Case)
 
 ```
-[ Citizen Sign-up/Log-in ]
-           │
-           ├─── Unverified ───> [ Upload ID Image ] ───> [ Gemini Vision OCR ] ───> [ Auto-fill & Secure Profile ] 
-           │                                                                                     │
-           └─── Verified Citizen ────────────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-             [ File Public Incident ]
-                         │
-                         ├───> Drag Map Marker / Geocode Location Address
-                         ├───> Upload Incident Snapshot (Pothole, Wire leak, Trash)
-                         └───> Gemini / Mistral API Classifies Category & Urgency
-                                       │
-                                       ▼
-                       [ Firestore Database Entry ]
-                                       │
-                                       ▼
-                    [ Official Analytical Console ]
-                                       │
-                         ┌─────────────┴─────────────┐
-                         ▼                           ▼
-                [ Geospatial Hotspots ]     [ SLA Task Assignment ]
-```
-
----
-
-## 6. Wireframes & UI Mock Layouts
-
-### Citizen Submission Dashboard
-```
-+-----------------------------------------------------------------------------------------+
-| SCCi                                          [Help Assistant AI]  [Citizen Menu] |
-+-----------------------------------------------------------------------------------------+
-|                                                                                         |
-|  Submit Grievance                          City-wide Incident Tracker                   |
-|  +-------------------------------------+   +-----------------------------------------+  |
-|  | Title: Broken sewer pipeline        |   | [ SEARCH INCIDENTS ]                    |  |
-|  | Category: [ Water & Sewage  ] [V]   |   |                                         |  |
-|  | Address: 4th Block, Indiranagar     |   |  • ID #732 - High Urgency Sewer Leak    |  |
-|  |                                     |   |    [Assigned - SLA: 12 Hours Left]      |  |
-|  | [ Drag and Drop Incident Image ]    |   |                                         |  |
-|  |                                     |   |  • ID #731 - Medium Urgency Pothole     |  |
-|  |  [ Pinpoint Location on Map ]       |   |    [Pending - SLA: 36 Hours Left]       |  |
-|  |                                     |   +-----------------------------------------+  |
-|  |  [ SUBMIT INCIDENT REPORT ]         |   | Interactive Visual Pins Map             |  |
-|  +-------------------------------------+   | [o] Water Leak  [o] Power Outage        |  |
-|                                            +-----------------------------------------+  |
-+-----------------------------------------------------------------------------------------+
-```
-
-### Citizen ID Verification Modal
-```
-+-----------------------------------------------------------------------------------------+
-| SCCi Secure Citizen Portal                                                       |
-+-----------------------------------------------------------------------------------------+
-|                                                                                         |
-|  Secure Profile Verification                                                            |
-|  +--------------------------------------+  +-----------------------------------------+  |
-|  | Upload ID Image (Aadhaar / Voter ID) |  | Gemini Vision AI Inspection Result      |  |
-|  | +----------------------------------+ |  |                                         |  |
-|  | |                                  | |  | STATUS: Verified Legitimate             |  |
-|  | |        [ UPLOADED IMAGE ]        | |  |                                         |  |
-|  | |                                  | |  | Extracted Data:                         |  |
-|  | +----------------------------------+ |  | - Legal Name: Ramesh Kumar              |  |
-|  |                                      |  | - ID Number:  5489-1204-9058            |  |
-|  |  [ Choose another file ]             |  | - Address: 12, MG Road, Bengaluru       |  |
-|  +--------------------------------------+  | - Phone: 9876543210                     |  |
-|                                            |                                         |  |
-|                                            | [ SAVE & AUTO-FILL REGISTRATION CARD ]  |  |
-|                                            +-----------------------------------------+  |
-+-----------------------------------------------------------------------------------------+
+                       +─────────────────────────────────+
+                       │       Unregistered Citizen      │
+                       +────────────────┬────────────────+
+                                        │
+                                        ▼
+                       +─────────────────────────────────+
+                       │      Upload Government ID       │
+                       +────────────────┬────────────────+
+                                        │
+                                        ▼
+                       +─────────────────────────────────+
+                       │   Gemini Vision OCR API Route   │
+                       +────────────────┬────────────────+
+                                        │
+                    ┌───────────────────┴───────────────────┐
+                    ▼ [Document Rejected]                   ▼ [Document Verified]
+        +───────────────────────+               +───────────────────────+
+        │ Display Error & Reason│               │ Auto-fill Profile     │
+        +───────────────────────+               │ (Name, Phone, Address)│
+                                                +───────────┬───────────+
+                                                            │
+                                                            ▼
+                                                +───────────────────────+
+                                                │ Firestore Integrity   │
+                                                │ Lock (No Duplicates)  │
+                                                +───────────┬───────────+
+                                                            │
+                                                            ▼
+                                                +───────────────────────+
+                                                │ File Incident Ticket │
+                                                +───────────┬───────────+
+                                                            │
+                                                            ▼
+                                                +───────────────────────+
+                                                │ AI Classifies Category│
+                                                │ & Severity Level      │
+                                                +───────────┬───────────+
+                                                            │
+                                                            ▼
+                                                +───────────────────────+
+                                                │ Municipal Authority   │
+                                                │ SLA Redressal Stream  │
+                                                +───────────────────────+
 ```
 
 ---
 
-## 7. System Architecture Diagram
+## 6. Wireframes & Frontend Layout Mockups
 
+### Frame A: ID Verification Suite (Signup Phase)
 ```
-               ┌────────────────────────────────────────────────────────┐
-               │                     Web Browser                        │
-               │   (React SPA, Tailwind UI, Leaflet / Custom Maps)     │
-               └───────────┬────────────────────────────────▲───────────┘
-                           │                                │
-                     HTTPS │ API Queries              HTTPS │ Data Streams
-                           ▼                                │
-               ┌────────────────────────────────────────────┴───────────┐
-               │                    Express Server                      │
-               │                 (Node.js REST Engine)                  │
-               └───────────┬────────────────────────────────▲───────────┘
-                           │                                │
-                     HTTPS │ REST APIs                HTTPS │ REST APIs
-                           ▼                                │
-      ┌────────────────────┴───────────┐         ┌──────────┴─────────────────────┐
-      │        Gemini Vision LLM       │         │       Cloud Firestore          │
-      │  (ID verification, OCR,        │         │   (NoSQL Citizen Profiles,     │
-      │   Incident Classification)     │         │    Grievance Collections)      │
-      └────────────────────────────────┘         └────────────────────────────────┘
++-----------------------------------------------------------------------------------+
+| CivixVerify | Secure Government Identity Verification Setup                      |
++-----------------------------------------------------------------------------------+
+|                                                                                   |
+|  Select Identity Card Type: [ Indian Aadhaar Card (UIDAI) ] [V]                   |
+|                                                                                   |
+|  +---------------------------------------+  +----------------------------------+  |
+|  | Card Document Image Upload Area       |  | Real-Time Gemini Vision Results  |  |
+|  |                                       |  |                                  |  |
+|  |  +---------------------------------+  |  | STATUS: [ VERIFIED & SECURED ]   |  |
+|  |  |                                 |  |  |                                  |  |
+|  |  |        [ Aadhaar Image ]        |  |  | extracted profile properties:    |  |
+|  |  |                                 |  |  | • Legal Name: Ramesh Kumar       |  |
+|  |  +---------------------------------+  |  | • ID Number:  5489 1204 9058     |  |
+|  |                                       |  | • Address: 12, MG Road, Sec 4,   |  |
+|  |  [ Choose another document file ]     |  |   Bengaluru, Karnataka - 560001  |  |
+|  +---------------------------------------+  | • Phone: 9876543210              |  |
+|                                             |                                  |  |
+|                                             | [ LINK IDENTITY & AUTO-FILL ]    |  |
+|                                             +----------------------------------+  |
++-----------------------------------------------------------------------------------+
+```
+
+### Frame B: Citizen Workspace Dashboard
+```
++-----------------------------------------------------------------------------------+
+| CivixVerify Portal                                        [AI Assistant] [Ramesh] |
++-----------------------------------------------------------------------------------+
+|  +-------------------------------------+  +------------------------------------+  |
+|  | File A Public Grievance             |  | Interactive Incident Geo-Map       |  |
+|  |                                     |  |                                    |  |
+|  | Grievance Category:                 |  | +--------------------------------+ |  |
+|  | [ Road Damage / Potholes     ] [V]  |  | | [o] sewage spill (High)        | |  |
+|  | Title: Major Pothole Near Intersection|  | |                                | |  |
+|  | Incident Address:                   |  | |           [o] Pothole (Med)    | |  |
+|  | [ 12, MG Road, Sec 4, Bengaluru   ] |  | |                                | |  |
+|  |                                     |  | +--------------------------------+ |  |
+|  | Upload Damage Snapshots:            |  |                                    |  |
+|  | [ Drop Incident Images Here       ] |  | Active Redressal Tracker:          |  |
+|  |                                     |  | • Sewer Leaks - Assigned (12h left)|  |
+|  | [ SUBMIT GRIEVANCE ]                |  | • Potholes    - Pending  (36h left)|  |
+|  +-------------------------------------+  +------------------------------------+  |
++-----------------------------------------------------------------------------------+
 ```
 
 ---
 
-## 8. Technology Stack & Google/Nvidia Services Used
+## 7. Comprehensive Architecture Blueprint
 
-### A. Core Technologies
-- **Front-End:** React 18, Vite (Fast HMR), Tailwind CSS (Aesthetic utilities), Lucide React (Sleek UI icons), Recharts & D3 (Dashboard analytics visualization).
-- **Backend Server:** Node.js, Express, `tsx` TypeScript execution daemon.
-- **Database Engine:** Google Cloud Firestore (Live collections, profile binding, security check indexing).
-
-### B. Google & Nvidia AI Services
-1.  **Google Gemini Developer API (`@google/genai`):** Used to interface with the `gemini-2.5-flash` model. Selected for its rapid inference speeds, high visual/OCR accuracy, and support for complex JSON Schemas.
-2.  **Multimodal Vision OCR:** Utilized on the `/api/verify-id` route to parse uploaded identity documents and output formatted JSON, automating user onboarding.
-3.  **NVIDIA Mistral API (or rules-based fallbacks):** Employed inside the `/api/analyze` router to tag, classify, and assess the severity and sentiment of citizen-submitted descriptions.
-
-### C. Scalability & Deployment Support
-- **Stateless Express Backend:** Allows the Node server to scale horizontally across serverless Google Cloud Run containers.
-- **Flexible NoSQL Firestore Schemas:** Easily accommodates evolving municipal metadata, category additions, and custom compliance frameworks without downtime.
+```
+                      +───────────────────────────────+
+                      │       Web Application         │
+                      │  (React 18 Single Page App)   │
+                      +───────────────┬───────────────+
+                                      │
+                         REST API     │ Server Streams
+                         Queries      │ 
+                                      ▼
+                      +───────────────────────────────+
+                      │      TypeScript Backend       │
+                      │   (Node.js Express Server)    │
+                      +───────────────┬───────────────+
+                                      │
+            ┌─────────────────────────┼─────────────────────────┐
+            ▼                         ▼                         ▼
++───────────────────────+ +───────────────────────+ +───────────────────────+
+|     Google Gemini     | |     Google Cloud      | |   Leaflet Map Engine  |
+|    SDK Integration    | |   Firestore Database  | |   & Geocode Services  |
+| (Multimodal OCR, Chat | | (Citizen Data Store,  | | (Geospatial Incident  |
+|  Classification, LLM) | | Grievance Records)    | |   Coordinate Plot)    |
++───────────────────────+ +───────────────────────+ +───────────────────────+
+```
 
 ---
 
-## 9. Prototype Highlights
+## 8. Technology Stack & Design Decisions
 
-### 1. Document Extraction Control Board
-Our visual control board shows the raw uploaded image file side-by-side with the real-time **AI Inspection Panel**. Clicking the button triggers Gemini to parse the fields, showing loading alerts with dynamic scan animations.
+### Why We Selected This Stack
+1.  **Google Gemini Developer API (`@google/genai`):** We integrated the `gemini-2.5-flash` model. Its multimodal capabilities allow it to analyze physical documents, while support for structured JSON schemas ensures consistent, reliable API responses.
+2.  **Tailwind CSS:** Selected for custom, responsive interface styling with high-contrast UI components and robust accessibility support.
+3.  **Google Cloud Firestore:** A real-time, serverless NoSQL database that scales effortlessly while maintaining high data integrity through duplicate-prevention indexes.
+4.  **Leaflet & Geocoding Map Controls:** Enables coordinate mapping directly in the browser, bypassing complex, proprietary mapping setups.
 
-### 2. Live Citizen Grievance Portal
-Features interactive incident feeds, live status cards (Pending, In Progress, Resolved), and SLA timers indicating exactly how much time remains for the assigned department to resolve the issue.
+---
 
-### 3. Government Analytical Console
-Includes interactive maps highlighting dense issue hotspots, progress graphs representing overall resolution rates, and ticket assignment boards that empower city coordinators to streamline public infrastructure maintenance.
+## 9. Running and Initializing the Prototype
+
+### Quickstart Setup
+1.  **Configure Environment Variables:**
+    Create a `.env` file in the project root:
+    ```env
+    GEMINI_API_KEY=your_actual_gemini_api_key
+    ```
+2.  **Install Dependencies:**
+    ```bash
+    npm install
+    ```
+3.  **Start the Live Dev Server:**
+    ```bash
+    npm run dev
+    ```
+4.  **Open Portal:**
+    Navigate to `http://localhost:3000` to interact with both the Citizen and Authority dashboards.
