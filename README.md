@@ -4,8 +4,8 @@
 ---
 
 ## 🚀 Live Demo & Development URLs
-*   **Development App URL:** [https://ais-dev-kv6lltajrdup4agya43z4y-8250557229.asia-southeast1.run.app](https://ais-dev-kv6lltajrdup4agya43z4y-8250557229.asia-southeast1.run.app)
-*   **Shared App URL:** [https://ais-pre-kv6lltajrdup4agya43z4y-8250557229.asia-southeast1.run.app](https://ais-pre-kv6lltajrdup4agya43z4y-8250557229.asia-southeast1.run.app)
+*   **Development App URL:** [https://smart-city-complaint-intelligence.vercel.app/](https://smart-city-complaint-intelligence.vercel.app/)
+*   **Shared App URL:** [https://smart-city-complaint-intelligence.vercel.app/](https://smart-city-complaint-intelligence.vercel.app/)
 
 ---
 
