@@ -15,6 +15,7 @@ import {
   TrendingDown
 } from "lucide-react";
 import axios from "axios";
+import { getFallbackAnalysis } from "../utils/fallbackAnalysis";
 
 declare const L: any;
 
@@ -329,8 +330,20 @@ export default function CitizenPortal({ currentUser, allComplaints, onRefreshCom
         setCategory(response.data.category);
       }
     } catch (err) {
-      console.error("AI Analysis failed:", err);
-      setFormError("AI Analysis service is currently offline or unreachable. Please fill in details manually.");
+      console.warn("AI Analysis API failed or unreachable. Falling back to client-side analyzer:", err);
+      // Fallback gracefully using our local smart client-side analyzer
+      const localResult = getFallbackAnalysis(title, description);
+      setAiResult({
+        category: localResult.category,
+        severity: localResult.severity,
+        sentiment: localResult.sentiment,
+        keywords: localResult.keywords,
+        source: "client_local_fallback"
+      });
+      if (localResult.category) {
+        setCategory(localResult.category);
+      }
+      setFormError("AI cloud service is offline. Successfully ran local client-side analysis instead!");
     } finally {
       setAnalyzing(false);
     }
